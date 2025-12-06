@@ -13,15 +13,11 @@ Just drag and drop your MP4 file to view the clip and assocaited SEI metadata. W
 ## Files
 
 * [`sei_explorer.html`](sei_explorer.html)
-    * Web-based video player that displays SEI metadata alongside video playback.
+    * Web-based video player that displays SEI metadata alongside video playback. Uses [`dashcam-mp4.js`](dashcam-mp4.js) for MP4 parsing and SEI metadata extraction.
 * [`sei_extractor.py`](sei_extractor.py)
     * Python-based metadata extractor. Command-line tool for extracting SEI data from MP4 files.
-* [`dashcam-mp4.js`](dashcam-mp4.js)
-    * Shared JavaScript library for MP4 parsing and SEI metadata extraction. Used by both web tools.
 * [`dashcam.proto`](dashcam.proto)
     * The protobuf spec that is used to decode SEI data in the MP4 file(s).
-* [`sei_extractor.html`](sei_extractor.html)
-    * Web-based metadata extractor. Generates a CSV of the metadata from an MP4.
 
 ## Troubleshooting
 

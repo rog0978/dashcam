@@ -326,24 +326,6 @@
             cursor: not-allowed;
         }
 
-        /* Status bar */
-        .status {
-            flex-shrink: 0;
-            padding: 0.375rem 0.75rem;
-            background: var(--bg-panel);
-            border-radius: 6px;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        .status:empty {
-            display: none;
-        }
-
-        .status.error {
-            color: #f66;
-        }
-
         /* ===== ROW LAYOUT (short/narrow screens) ===== */
         @media (max-height: 600px),
         (max-width: 600px) {
@@ -391,14 +373,16 @@
         <header class="header">
             <p class="nav"><a href="index.html">← Back to Dashcam Tools</a></p>
             <h1>Tesla Dashcam SEI Explorer</h1>
-            <p class="subtitle">View dashcam footage with embedded SEI metadata</p>
+            <p class="subtitle">View dashcam footage with embedded SEI metadata. All processing happens locally in your
+                browser—no video/SEI data is uploaded. (<a
+                    href="https://github.com/teslamotors/dashcam/blob/master/sei_explorer.html">view source</a>)</p>
         </header>
 
         <main class="main">
             <section class="video-section">
                 <div class="video-wrap">
                     <div class="drop-overlay" id="dropOverlay">
-                        <input type="file" id="fileInput" accept="video/mp4">
+                        <input type="file" id="fileInput" accept="video/mp4" multiple>
                         <p>Drop MP4 here or click to select</p>
                     </div>
                     <canvas id="canvas"></canvas>
@@ -424,13 +408,11 @@
                 <button class="export-btn" id="exportBtn" disabled>Export CSV</button>
             </aside>
         </main>
-
-        <div class="status" id="status"></div>
     </div>
 
     <script src="vendor/protobuf.min.js"></script>
+    <script src="vendor/jszip.min.js"></script>
     <script src="dashcam-mp4.js"></script>
-    <script src="dashcam-helpers.js"></script>
     <script>
         // State
         let seiType = null, seiFields = null, seiFieldsCsv = null;
@@ -444,14 +426,24 @@
         const dropOverlay = $('dropOverlay'), fileInput = $('fileInput');
         const canvas = $('canvas'), ctx = canvas.getContext('2d');
         const slider = $('slider'), playBtn = $('playBtn'), exportBtn = $('exportBtn');
-        const frameNum = $('frameNum'), fileName = $('fileName'), metaList = $('metaList'), status = $('status');
+        const frameNum = $('frameNum'), fileName = $('fileName'), metaList = $('metaList');
 
         // Events
         dropOverlay.onclick = () => fileInput.click();
-        fileInput.onchange = e => loadFile(e.target.files[0]);
+        fileInput.onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
         document.ondragover = e => { e.preventDefault(); dropOverlay.classList.add('dragover'); };
         document.ondragleave = e => { if (!e.relatedTarget) dropOverlay.classList.remove('dragover'); };
-        document.ondrop = e => { e.preventDefault(); dropOverlay.classList.remove('dragover'); loadFile(e.dataTransfer.files[0]); };
+        document.ondrop = async e => {
+            e.preventDefault();
+            dropOverlay.classList.remove('dragover');
+            const items = e.dataTransfer?.items;
+            if (items) {
+                const { files, directoryName } = await DashcamHelpers.getFilesFromDataTransfer(items);
+                handleFiles(files, directoryName);
+            } else {
+                handleFiles(e.dataTransfer?.files ?? []);
+            }
+        };
         slider.oninput = () => { pause(); showFrame(+slider.value); };
         playBtn.onclick = () => playing ? pause() : play();
         document.onkeydown = e => {
@@ -473,13 +465,45 @@
             seiFieldsCsv = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useSnakeCase: true });
         }).catch(err => console.error('Protobuf init failed:', err));
 
+        async function handleFiles(fileList, directoryName = null) {
+            if (!seiType) await DashcamHelpers.initProtobuf().then(({ SeiMetadata, enumFields }) => {
+                seiType = SeiMetadata;
+                seiFields = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useLabels: true });
+                seiFieldsCsv = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useSnakeCase: true });
+            });
+
+            const files = (Array.isArray(fileList) ? fileList : Array.from(fileList))
+                .filter(f => f.name.toLowerCase().endsWith('.mp4'));
+            if (!files.length) { alert('Please choose at least one MP4 file.'); return; }
+
+            // Single file: load and display video
+            if (files.length === 1) { loadFile(files[0]); return; }
+
+            // Multiple files: extract metadata and create zip
+            const zip = new JSZip();
+            let exported = 0;
+            for (const file of files) {
+                try {
+                    const mp4 = new DashcamMP4(await file.arrayBuffer());
+                    const messages = mp4.extractSeiMessages(seiType);
+                    if (messages.length) {
+                        zip.file(file.name.replace(/\.mp4$/i, '_sei.csv'), DashcamHelpers.buildCsv(messages, seiFieldsCsv));
+                        exported++;
+                    }
+                } catch { }
+            }
+            if (!exported) { alert('No files produced SEI metadata.'); return; }
+            DashcamHelpers.downloadBlob(await zip.generateAsync({ type: 'blob' }), directoryName ? `${directoryName}_sei.zip` : 'dashcam_sei_metadata.zip');
+            alert(`Exported ${exported} CSV${exported > 1 ? 's' : ''} as ZIP. To view a clip, select a single file.`);
+        }
+
         async function loadFile(file) {
             if (!file) return;
             if (!file.name.toLowerCase().endsWith('.mp4')) {
                 alert('Please select an MP4 file');
                 return;
             }
-            if (!seiType) return showStatus('Protobuf not initialized', true);
+            if (!seiType) { alert('Protobuf not initialized'); return; }
 
             pause();
             if (decoder) { try { decoder.close(); } catch { } decoder = null; }
@@ -487,7 +511,6 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             try {
-                showStatus('Loading...');
                 mp4 = new DashcamMP4(await file.arrayBuffer());
                 frames = mp4.parseFrames(seiType);
                 firstKeyframe = frames.findIndex(f => f.keyframe);
@@ -504,7 +527,6 @@
                 exportBtn.disabled = false;
                 playBtn.disabled = false;
                 slider.disabled = false;
-                showStatus('');
                 showFrame(firstKeyframe);
             } catch (err) {
                 mp4 = null;
@@ -519,7 +541,7 @@
                 playBtn.disabled = true;
                 slider.disabled = true;
                 dropOverlay.classList.remove('hidden');
-                showStatus(err.message, true);
+                alert(err.message);
             }
         }
 
@@ -553,6 +575,8 @@
         }
 
         async function decodeFrame(index) {
+            /* Naive decoding strategy: start from the preceding keyframe and decode up to the target frame.
+                This is not optimal in all cases since it re-decodes frames that have already been decoded. */
             decoding = true;
             try {
                 let keyIdx = index;
@@ -612,20 +636,8 @@
             if (!frames || !seiFieldsCsv) return;
             const messages = frames.map(f => f.sei).filter(Boolean);
             if (!messages.length) { alert('No SEI metadata to export.'); return; }
-            const csv = DashcamHelpers.buildCsv(messages, seiFieldsCsv);
             const filename = (currentFileName || 'dashcam').replace(/\.mp4$/i, '') + '_sei.csv';
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = Object.assign(document.createElement('a'), { href: url, download: filename });
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }
-
-        function showStatus(msg, error = false) {
-            status.textContent = msg;
-            status.className = 'status' + (error ? ' error' : '');
+            DashcamHelpers.downloadBlob(new Blob([DashcamHelpers.buildCsv(messages, seiFieldsCsv)], { type: 'text/csv' }), filename);
         }
 
         function showError(msg) {
