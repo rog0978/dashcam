@@ -1,23 +1,15 @@
 # Dashcam Tools
 
-This repo contains tools for viewing Tesla Dashcam videos and extracting their associated metadata. This includes information such as vehicle speed, steering wheel angle, and self-driving state. Supported MP4 files can be found on the flash drive plugged into your Tesla (usually in the glovebox), or by downloading a clip via the Tesla mobile app's Dashcam Viewer.
+This is a fork of the **[original Tesla Dashcam repo →]([https://rog0978.github.io/dashcam/index.html](https://github.com/teslamotors/dashcam))**. The updates are:
 
-This metadata also appears in the Dashcam Viewer during playback on supported vehicle displays and the Tesla App.
+1. Added a nice visual overlay from the SEI metadata
+2. Added an export function to download the overlaid clip after processing
 
 ## Dashcam SEI Explorer (Easiest)
 
 **[Use the online SEI Explorer →](https://rog0978.github.io/dashcam/index.html)**
 
 Just drag and drop your MP4 file to view the clip and assocaited SEI metadata. Works entirely in your browser - your files never leave your computer.
-
-## Files
-
-* [`sei_explorer.html`](sei_explorer.html)
-    * Web-based video player that displays SEI metadata alongside video playback. Uses [`dashcam-mp4.js`](dashcam-mp4.js) for MP4 parsing and SEI metadata extraction.
-* [`sei_extractor.py`](sei_extractor.py)
-    * Python-based metadata extractor. Command-line tool for extracting SEI data from MP4 files.
-* [`dashcam.proto`](dashcam.proto)
-    * The protobuf spec that is used to decode SEI data in the MP4 file(s).
 
 ## Troubleshooting
 
