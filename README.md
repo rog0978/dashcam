@@ -9,9 +9,9 @@ The updates are:
 1. Added a nice visual overlay from the SEI metadata
 2. Added an export function to download the overlaid clip after processing
 
-## Dashcam SEI Explorer (Easiest)
+## Usage
 
-**[Use the online SEI Explorer →](https://rog0978.github.io/dashcam/add_SEI_Overlay.html)**
+**[Use the online SEI Creator →](https://rog0978.github.io/dashcam/add_SEI_Overlay.html)**
 
 Just drag and drop your MP4 file from the Dashcam USB stick to view the clip with the associated telemetry SEI metadata and export a videoclip with the embedded visualization. Works entirely in your browser - your files never leave your computer.
 
