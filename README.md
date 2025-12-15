@@ -6,7 +6,7 @@ This metadata also appears in the Dashcam Viewer during playback on supported ve
 
 ## Dashcam SEI Explorer (Easiest)
 
-**[Use the online SEI Explorer →](https://rog0978.github.io/dashcam/sei_explorer.html)**
+**[Use the online SEI Explorer →](https://rog0978.github.io/dashcam/index.html)**
 
 Just drag and drop your MP4 file to view the clip and assocaited SEI metadata. Works entirely in your browser - your files never leave your computer.
 
