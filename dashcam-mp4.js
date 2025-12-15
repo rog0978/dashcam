@@ -103,40 +103,52 @@ class DashcamMP4 {
     // -------------------------------------------------------------
 
     /** Parse video frames with SEI metadata */
-    parseFrames(SeiMetadata) {
-        const config = this.getConfig();
-        const mdat = this.findMdat();
-        const frames = [];
-        let cursor = mdat.offset;
-        const end = mdat.offset + mdat.size;
-        let pendingSei = null, currentSps = config.sps, currentPps = config.pps;
+ parseFrames(SeiMetadata) {
+    const config = this.getConfig();
+    const mdat = this.findMdat();
+    const frames = [];
+    let cursor = mdat.offset;
+    const end = mdat.offset + mdat.size;
+    let pendingSei = null, currentSps = config.sps, currentPps = config.pps;
+    
+    // Calculate real timestamp for each frame from durations
+    let cumulativeTime = 0;
 
-        while (cursor + 4 <= end) {
-            const len = this.view.getUint32(cursor);
-            cursor += 4;
-            if (len < 1 || cursor + len > this.view.byteLength) break;
+    while (cursor + 4 <= end) {
+        const len = this.view.getUint32(cursor);
+        cursor += 4;
+        if (len < 1 || cursor + len > this.view.byteLength) break;
 
-            const type = this.view.getUint8(cursor) & 0x1F;
-            const data = new Uint8Array(this.buffer.slice(cursor, cursor + len));
+        const type = this.view.getUint8(cursor) & 0x1F;
+        const data = new Uint8Array(this.buffer.slice(cursor, cursor + len));
 
-            if (type === 7) currentSps = data; // SPS
-            else if (type === 8) currentPps = data; // PPS
-            else if (type === 6) pendingSei = this.decodeSei(data, SeiMetadata); // SEI
-            else if (type === 5 || type === 1) { // IDR or Slice
-                frames.push({
-                    index: frames.length,
-                    keyframe: type === 5,
-                    data,
-                    sei: pendingSei,
-                    sps: currentSps,
-                    pps: currentPps
-                });
-                pendingSei = null;
-            }
-            cursor += len;
+        if (type === 7) currentSps = data; // SPS
+        else if (type === 8) currentPps = data; // PPS
+        else if (type === 6) pendingSei = this.decodeSei(data, SeiMetadata); // SEI
+        else if (type === 5 || type === 1) { // IDR or Slice
+            const frameIndex = frames.length;
+            const duration = config.durations && config.durations[frameIndex] !== undefined 
+                ? config.durations[frameIndex] 
+                : 33.333;
+            
+            frames.push({
+                index: frameIndex,
+                keyframe: type === 5,
+                data,
+                sei: pendingSei,
+                sps: currentSps,
+                pps: currentPps,
+                timestamp: Math.round(cumulativeTime * 1000), // in microseconds
+                duration: Math.round(duration * 1000) // in microseconds
+            });
+            
+            cumulativeTime += duration;
+            pendingSei = null;
         }
-        return frames;
+        cursor += len;
     }
+    return frames;
+}
 
     // -------------------------------------------------------------
     // SEI Extraction
