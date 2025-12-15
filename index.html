@@ -1,95 +1,1005 @@
 <!doctype html>
 <html lang="en">
-
 <head>
-    <meta charset="utf-8" />
-    <title>Dashcam Tools</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tesla Dashcam SEI Explorer + Overlay</title>
+<style>
+    :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --bg-panel: #f5f5f5;
+        --text: #1a1a1a;
+        --text-muted: #666666;
+        --accent: #0080ff;
+        --accent-hover: #0099ff;
+        --border: #888888;
+        --drop-hover-bg: #e8f4ff;
+    }
+    @media (prefers-color-scheme: dark) {
         :root {
-            color-scheme: light dark;
-            --bg-color: #ffffff;
-            --text-color: #1a1a1a;
-            --text-muted: #666666;
-            --link-color: #0080ff;
-            --border-color: #e0e0e0;
+            --bg: #1a1a1a;
+            --bg-panel: #252525;
+            --text: #e8e8e8;
+            --text-muted: #999999;
+            --accent: rgb(255, 0, 51);
+            --accent-hover: rgb(200, 0, 40);
+            --border: #666666;
+            --drop-hover-bg: #291818;
         }
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { height: 100%; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; }
+    a { color: var(--accent); }
 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg-color: #1a1a1a;
-                --text-color: #e8e8e8;
-                --text-muted: #999999;
-                --link-color: #4da6ff;
-                --border-color: #333333;
-            }
-        }
+    .app { display: flex; flex-direction: column; height: 100%; padding: 1rem; gap: 0.75rem; }
+    .header h1 { font-size: 1.4rem; margin-bottom: 0.125rem; }
+    .header .subtitle { color: var(--text-muted); font-size: 0.85rem; }
+    .main { flex: 1; min-height: 0; display: flex; gap: 1rem; }
+    .video-section { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .meta-section { width: 285px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .video-wrap { flex: 1; min-height: 0; background: #000; border-radius: 8px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .video-wrap canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .drop-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-panel); border: 2px dashed var(--border); border-radius: 8px; cursor: pointer; z-index: 10; transition: background 0.15s; }
+    .drop-overlay.hidden { display: none; }
+    .drop-overlay:hover { background: var(--drop-hover-bg); border-color: var(--accent); }
+    .scrubber { flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: var(--bg-panel); border-radius: 6px; height: 44px; }
+    .scrubber button { width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--accent); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .scrubber button:hover:not(:disabled) { background: var(--accent-hover); }
+    .scrubber button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .scrubber button svg { width: 14px; height: 14px; fill: currentColor; }
+    .scrubber input[type="range"] { flex: 1; height: 4px; cursor: pointer; }
+    .meta-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-panel); border-radius: 6px; overflow: hidden; padding-bottom: 3px; }
+    .meta-header { flex-shrink: 0; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    .meta-header .filename { font-weight: 600; font-size: 0.75rem; word-break: break-all; }
+    .meta-header .framenum { font-size: 0.7rem; color: var(--text-muted); }
+    .meta-list { flex: 1; overflow-y: auto; padding: 0.5rem 0.75rem; display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+    .meta-list .item { display: flex; flex-direction: column; }
+    .meta-list .label { font-size: 0.7rem; color: var(--text-muted); }
+    .meta-list .value { font-weight: 600; color: var(--accent); }
+    .export-group { flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .format-select { height: 36px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); padding: 0 0.5rem; font-size: 0.8rem; }
+    .export-btn { height: 44px; padding: 0 0.75rem; border: none; border-radius: 6px; background: var(--accent); color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-bottom: 0.5rem; }
+    .export-btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            line-height: 1.5;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 1.5rem 1rem;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-        }
-
-        @media (min-width: 640px) {
-            body {
-                padding: 2rem 1rem;
-            }
-        }
-
-        h1 {
-            margin-bottom: 0.25rem;
-            font-size: clamp(1.5rem, 5vw, 2rem);
-        }
-
-        .subtitle {
-            color: var(--text-muted);
-            margin-top: 0;
-        }
-
-        a {
-            color: var(--link-color);
-        }
-
-        ul {
-            padding-left: 1.25rem;
-        }
-
-        .note {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-
-        .nav {
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-        }
-    </style>
+    @media (max-width: 600px) {
+        .main { flex-direction: column; }
+        .meta-section { width: auto; height: 300px; }
+    }
+</style>
 </head>
-
 <body>
-    <p class="nav">
-        <a href="https://github.com/teslamotors/dashcam">
-            View on GitHub
-        </a>
-    </p>
-    <h1>Tesla Dashcam Tools</h1>
-    <p class="subtitle">Tools for viewing and extracting metadata from supported Tesla Dashcam videos.</p>
+<div class="app">
+    <header class="header">
+        <h1>Tesla Dashcam SEI Explorer</h1>
+        <p class="subtitle">Overlay processing happens locally. <strong>Ensure you run this on a local web server (not file://).</strong></p>
+    </header>
+    <main class="main">
+        <section class="video-section">
+            <div class="video-wrap">
+                <div class="drop-overlay" id="dropOverlay">
+                    <input type="file" id="fileInput" accept="video/mp4" multiple>
+                    <p>Drop MP4 here or click to select</p>
+                </div>
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="scrubber">
+                <button id="playBtn" title="Play/Pause" disabled>
+                    <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20" /></svg>
+                </button>
+                <input type="range" id="slider" min="0" max="0" value="0" disabled>
+            </div>
+        </section>
+        <aside class="meta-section">
+            <div class="meta-panel">
+                <div class="meta-header">
+                    <div class="filename" id="fileName">No file loaded</div>
+                    <div class="framenum" id="frameNum">Frame 0/0</div>
+                </div>
+                <div class="meta-list" id="metaList"></div>
+            </div>
+            
+            <div class="export-group">
+                <button class="export-btn" id="exportCsvBtn" disabled>Export CSV</button>
+                <select id="formatSelect" class="format-select" disabled>
+                    <option value="" disabled selected>Loading formats...</option>
+                </select>
+                <button class="export-btn" id="exportVideoBtn" disabled>Export Video</button>
+            </div>
+        </aside>
+    </main>
+</div>
 
-    <ul>
-        <li><a href="sei_explorer.html">SEI Explorer</a> — view dashcam footage with SEI metadata displayed alongside
-            video playback.</li>
-        <li><a href="https://github.com/teslamotors/dashcam/blob/master/sei_extractor.py">Python CLI</a> — Python-based
-            metadata extractor for extracting SEI data from MP4 files.</li>
-        <li><a href="https://github.com/teslamotors/dashcam/blob/master/dashcam.proto">Protobuf schema</a> — the
-            protobuf spec that is used to decode SEI data in the MP4 file(s).</li>
-    </ul>
-    <p class="note">Not all Tesla-generated dashcam clips contain SEI data. Only clips recorded on Tesla firmware
-        2025.44.25 or later and HW3 or above contain SEI data. If car is parked, SEI data may not be present.</p>
+<script src="vendor/protobuf.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="dashcam-mp4.js"></script>
+
+<script>
+// --- STATE ---
+let seiType = null, seiFields = null, seiFieldsCsv = null;
+let mp4 = null, frames = null, firstKeyframe = 0;
+let currentFileName = null;
+let playbackDecoder = null; // Reused decoder for playback
+let decoding = false, pendingFrame = null;
+let playing = false, playTimer = null;
+let isExporting = false;
+
+// --- DOM ---
+const $ = id => document.getElementById(id);
+const dropOverlay = $('dropOverlay'), fileInput = $('fileInput');
+const canvas = $('canvas'), ctx = canvas.getContext('2d');
+const slider = $('slider'), playBtn = $('playBtn');
+const exportCsvBtn = $('exportCsvBtn'), exportVideoBtn = $('exportVideoBtn');
+const formatSelect = $('formatSelect');
+const frameNum = $('frameNum'), fileName = $('fileName'), metaList = $('metaList');
+
+// --- EVENTS ---
+dropOverlay.onclick = () => fileInput.click();
+fileInput.onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
+document.ondragover = e => { e.preventDefault(); dropOverlay.classList.add('dragover'); };
+document.ondragleave = e => { if (!e.relatedTarget) dropOverlay.classList.remove('dragover'); };
+document.ondrop = async e => {
+    e.preventDefault();
+    dropOverlay.classList.remove('dragover');
+    const items = e.dataTransfer?.items;
+    if (items) {
+        const { files, directoryName } = await DashcamHelpers.getFilesFromDataTransfer(items);
+        handleFiles(files, directoryName);
+    } else {
+        handleFiles(e.dataTransfer?.files ?? []);
+    }
+};
+
+slider.oninput = () => { pause(); showFrame(+slider.value); };
+playBtn.onclick = () => playing ? pause() : play();
+document.onkeydown = e => {
+    if (!frames) return;
+    if (e.key === ' ') { e.preventDefault(); playing ? pause() : play(); }
+    else if (e.key === 'ArrowLeft' && +slider.value > 0) {
+        e.preventDefault(); pause();
+        slider.value = +slider.value - 1; showFrame(+slider.value);
+    } else if (e.key === 'ArrowRight' && +slider.value < frames.length - 1) {
+        e.preventDefault(); pause();
+        slider.value = +slider.value + 1; showFrame(+slider.value);
+    }
+};
+exportCsvBtn.onclick = exportCsv;
+exportVideoBtn.onclick = exportVideo;
+
+// --- INITIALIZATION ---
+const supportedFormats = [
+    { mime: 'vp8', label: 'WebM (VP8) - Recommended', ext: 'webm' },
+    { mime: 'vp09.00.10.08', label: 'WebM (VP9)', ext: 'webm' }
+];
+
+function initFormats() {
+    formatSelect.innerHTML = '';
+    let found = false;
+    supportedFormats.forEach(fmt => {
+        if (typeof VideoEncoder !== 'undefined') {
+            VideoEncoder.isConfigSupported({ codec: fmt.mime, width: 640, height: 480 }).then(support => {
+                if (support.supported) {
+                    const opt = document.createElement('option');
+                    opt.value = fmt.mime;
+                    opt.textContent = fmt.label;
+                    formatSelect.appendChild(opt);
+                    found = true;
+                }
+            });
+        }
+    });
+    setTimeout(() => {
+        if (!found && formatSelect.options.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = 'vp8';
+            opt.textContent = "WebM (VP8) - Fallback";
+            formatSelect.appendChild(opt);
+        }
+    }, 500);
+}
+initFormats();
+
+DashcamHelpers.initProtobuf().then(({ SeiMetadata, enumFields }) => {
+    seiType = SeiMetadata;
+    seiFields = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useLabels: true });
+    seiFieldsCsv = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useSnakeCase: true });
+}).catch(err => { console.error(err); });
+
+async function handleFiles(fileList, directoryName = null) {
+    if (!seiType) {
+        try {
+            const data = await DashcamHelpers.initProtobuf();
+            seiType = data.SeiMetadata;
+            seiFields = DashcamHelpers.deriveFieldInfo(data.SeiMetadata, data.enumFields, { useLabels: true });
+            seiFieldsCsv = DashcamHelpers.deriveFieldInfo(data.SeiMetadata, data.enumFields, { useSnakeCase: true });
+        } catch (e) {
+            alert("Could not load dependencies.");
+            return;
+        }
+    }
+
+    const files = (Array.isArray(fileList) ? fileList : Array.from(fileList))
+        .filter(f => f.name.toLowerCase().endsWith('.mp4'));
+
+    if (!files.length) { alert('Please choose at least one MP4 file.'); return; }
+    if (files.length === 1) { loadFile(files[0]); return; }
+
+    const zip = new JSZip();
+    let exported = 0;
+    for (const file of files) {
+        try {
+            const mp4 = new DashcamMP4(await file.arrayBuffer());
+            const messages = mp4.extractSeiMessages(seiType);
+            if (messages.length) {
+                zip.file(file.name.replace(/\.mp4$/i, '_sei.csv'), DashcamHelpers.buildCsv(messages, seiFieldsCsv));
+                exported++;
+            }
+        } catch { }
+    }
+    if (!exported) { alert('No files produced SEI metadata.'); return; }
+    DashcamHelpers.downloadBlob(await zip.generateAsync({ type: 'blob' }), directoryName ? `${directoryName}_sei.zip` : 'dashcam_sei_metadata.zip');
+    alert(`Exported ${exported} CSVs as ZIP.`);
+}
+
+async function loadFile(file) {
+    if (!file || !file.name.toLowerCase().endsWith('.mp4')) return;
+    if (!seiType) { alert('Protobuf not initialized'); return; }
+
+    pause();
+    if (playbackDecoder) { try { playbackDecoder.close(); } catch { } playbackDecoder = null; }
+
+    metaList.innerHTML = '';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    try {
+        mp4 = new DashcamMP4(await file.arrayBuffer());
+        frames = mp4.parseFrames(seiType);
+
+        firstKeyframe = frames.findIndex(f => f.keyframe);
+        if (firstKeyframe === -1) throw new Error('No keyframes found');
+
+        const config = mp4.getConfig();
+        canvas.width = config.width;
+        canvas.height = config.height;
+
+        slider.max = frames.length - 1;
+        slider.value = firstKeyframe;
+        dropOverlay.classList.add('hidden');
+        currentFileName = file.name;
+        fileName.textContent = file.name;
+
+        exportCsvBtn.disabled = false;
+        exportVideoBtn.disabled = false;
+        formatSelect.disabled = false;
+        playBtn.disabled = false;
+        slider.disabled = false;
+
+        // Initialize persistent decoder for playback
+        initPlaybackDecoder();
+        showFrame(firstKeyframe);
+    } catch (err) {
+        console.error(err);
+        resetUI();
+        alert(err.message);
+    }
+}
+
+function resetUI() {
+    mp4 = null; frames = null; firstKeyframe = 0; currentFileName = null;
+    slider.max = 0; slider.value = 0;
+    frameNum.textContent = 'Frame 0/0'; fileName.textContent = 'No file loaded';
+    exportCsvBtn.disabled = true; exportVideoBtn.disabled = true; formatSelect.disabled = true;
+    playBtn.disabled = true; slider.disabled = true;
+    dropOverlay.classList.remove('hidden');
+}
+
+function play() {
+    if (!frames || playing || isExporting) return;
+    playing = true;
+    playBtn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>';
+    playNext();
+}
+
+function pause() {
+    if (isExporting) return;
+    playing = false;
+    playBtn.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>';
+    if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+}
+
+function playNext() {
+    if (!playing) return;
+    let next = +slider.value + 1;
+    if (next >= frames.length) next = firstKeyframe;
+    slider.value = next;
+    showFrame(next);
+    // Use slightly faster than 30fps for UI responsiveness
+    playTimer = setTimeout(playNext, 33);
+}
+
+// --- OPTIMIZED PLAYBACK LOGIC ---
+function initPlaybackDecoder() {
+    if (playbackDecoder) playbackDecoder.close();
+    playbackDecoder = new VideoDecoder({
+        output: frame => {
+            if (isExporting) { frame.close(); return; } // Don't interfere with export
+            ctx.drawImage(frame, 0, 0);
+            frame.close();
+            // Draw overlay after frame
+            const idx = +slider.value;
+            if (frames[idx] && frames[idx].sei) drawMetadataOverlay(frames[idx].sei, idx);
+            decoding = false;
+            if (pendingFrame !== null) {
+                const p = pendingFrame;
+                pendingFrame = null;
+                showFrame(p);
+            }
+        },
+        error: e => { console.error("Playback error", e); decoding = false; }
+    });
+    playbackDecoder.configure(mp4.getConfig());
+}
+
+async function showFrame(index) {
+    frameNum.textContent = `Frame ${index + 1}/${frames.length}`;
+    if (frames[index].sei) renderSei(frames[index].sei);
+    
+    if (decoding) { pendingFrame = index; return; }
+    decoding = true;
+
+    try {
+        if (!playbackDecoder || playbackDecoder.state === 'closed') initPlaybackDecoder();
+
+        // If seeking backwards or far forward (not sequential), we must restart from keyframe
+        // For simple sequential play, just decode the delta.
+        // We use a simple heuristic: if index is not next frame, flush and seek.
+        // (For simplicity in this standalone file, we restart from keyframe on large jumps)
+        
+        let needsKeyframe = true;
+        // Optimization: tracking decoder state is complex here, so we stick to robust keyframe seeking for now
+        // but verify if we can just decode current chunk? No, video is differential.
+        // So we ALWAYS find preceding keyframe.
+        
+        let keyIdx = index;
+        while (keyIdx >= 0 && !frames[keyIdx].keyframe) keyIdx--;
+        
+        if (keyIdx < 0) { decoding = false; return; }
+
+        // If playing sequentially, we ideally wouldn't flush. 
+        // But for "Slider not working", robustness > perf.
+        // We reset decoder to ensure clean state on scrub.
+        if (playbackDecoder.decodeQueueSize > 0) await playbackDecoder.flush();
+        
+        for (let i = keyIdx; i <= index; i++) {
+            playbackDecoder.decode(createChunk(frames[i]));
+        }
+    } catch(e) {
+        console.error(e);
+        decoding = false;
+    }
+}
+
+function createChunk(frame, useRealTimestamp) {
+    const sc = new Uint8Array([0, 0, 0, 1]);
+    const config = mp4.getConfig();
+    const data = frame.keyframe
+        ? DashcamMP4.concat(sc, frame.sps || config.sps, sc, frame.pps || config.pps, sc, frame.data)
+        : DashcamMP4.concat(sc, frame.data);
+
+    // For export, use real timestamps from durations; for playback use simple calculation
+    const timestamp = useRealTimestamp && frame.timestamp !== undefined 
+        ? frame.timestamp 
+        : frame.index * 33333;
+
+    return new EncodedVideoChunk({
+        type: frame.keyframe ? 'key' : 'delta',
+        timestamp: timestamp,
+        data
+    });
+}
+
+function renderSei(sei) {
+    metaList.innerHTML = '';
+    if (!seiFields) return;
+    for (const { propName, label, enumMap } of seiFields) {
+        const value = sei?.[propName];
+        const item = document.createElement('div');
+        item.className = 'item';
+        const displayValue = value != null ? DashcamHelpers.formatValue(value, enumMap) : '—';
+        item.innerHTML = `<span class="label">${label}</span><span class="value">${displayValue}</span>`;
+        metaList.appendChild(item);
+    }
+}
+
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  if (stroke) ctx.stroke();
+}
+
+function drawMetadataOverlay(sei, frameIndex) {
+    if (!sei) return;
+    ctx.save();
+    const scale = canvas.width / 1280;
+    const boxWidth = 400 * scale;
+    const boxHeight = 180 * scale;
+    const cornerRadius = 20 * scale;
+    const padding = 20 * scale;
+    const x = (canvas.width - boxWidth) / 2;
+    const y = 40 * scale;
+
+    const bgColor = '#f0f0f0a0'; 
+    const blueColor = '#007aff';
+    const greenColor = '#34c759';
+    const inactivePedalColor = 'rgba(0, 0, 0, 0.25)'; 
+    const activePedalColor = '#ff3b30';
+    const textColor = '#3a3a3c';
+    const secondaryTextColor = '#8e8e93';
+    let wheelColor = '#636366'; 
+    const gearBgColor = '#d1d1d680';
+
+    const speedFontSize = 80 * scale;
+    const unitFontSize = 24 * scale;
+    const stateFontSize = 28 * scale;
+    const gearFontSize = 32 * scale;
+
+    ctx.fillStyle = bgColor;
+    roundRect(ctx, x, y, boxWidth, boxHeight, cornerRadius, true, false);
+
+    const speedVal = sei.vehicleSpeedMps; 
+    const gearVal = sei.gearState; 
+    const autopilotVal = sei.autopilotState; 
+    const leftBlinker = sei.blinkerOnLeft;
+    const rightBlinker = sei.blinkerOnRight;
+    const steeringAngle = sei.steeringWheelAngle || 0;
+    const brakeApplied = sei.brakeApplied;
+    const accelPos = sei.acceleratorPedalPosition || 0;
+
+    let speedMph = '—';
+    if (speedVal != null) {
+        speedMph = Math.round(speedVal * 2.23694).toString();
+    }
+
+    let gearStr = 'P';
+    let gearColor = secondaryTextColor;
+    if (gearVal != null) {
+        const gearFieldDef = seiFields.find(f => f.propName === 'gearState');
+        if (gearFieldDef && gearFieldDef.enumMap) {
+            const valStr = DashcamHelpers.formatValue(gearVal, gearFieldDef.enumMap);
+            if (valStr === 'GEAR_DRIVE') { gearStr = 'D'; gearColor = blueColor; }
+            else if (valStr === 'GEAR_REVERSE') { gearStr = 'R'; }
+            else if (valStr === 'GEAR_NEUTRAL') { gearStr = 'N'; }
+        }
+    }
+
+    let stateStr = '';
+    if (autopilotVal != null) {
+        const apFieldDef = seiFields.find(f => f.propName === 'autopilotState');
+        if (apFieldDef && apFieldDef.enumMap) {
+            const valStr = DashcamHelpers.formatValue(autopilotVal, apFieldDef.enumMap);
+            if (valStr === 'SELF_DRIVING') {
+                stateStr = 'Self-Driving';
+                wheelColor = blueColor;
+            } else if (valStr === 'AUTOSTEER') {
+                stateStr = 'Autosteer';
+                wheelColor = blueColor;
+            } else if (valStr === 'TACC') {
+                stateStr = 'Traffic-Aware Cruise Control';
+            }
+        }
+    }
+
+    const showBlink = (frameIndex % 30) < 15;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const centerX = x + boxWidth / 2;
+    const centerY = y + boxHeight / 2;
+
+    ctx.fillStyle = textColor;
+    ctx.font = `600 ${speedFontSize}px sans-serif`;
+    ctx.fillText(speedMph, centerX, centerY - 15 * scale);
+    
+    ctx.fillStyle = secondaryTextColor;
+    ctx.font = `500 ${unitFontSize}px sans-serif`;
+    ctx.fillText('MPH', centerX, centerY + 30 * scale);
+
+    if (stateStr) {
+        ctx.fillStyle = blueColor;
+        ctx.font = `500 ${stateFontSize}px sans-serif`;
+        ctx.fillText(stateStr, centerX, y + boxHeight - 25 * scale);
+    }
+
+    const gearX = x + padding + gearFontSize / 2;
+    const gearY = y + padding + gearFontSize / 2;
+
+    ctx.save();
+    ctx.fillStyle = gearBgColor;
+    ctx.beginPath();
+    ctx.arc(gearX, gearY, gearFontSize * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = gearColor;
+    ctx.font = `600 ${gearFontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(gearStr, gearX, gearY);
+
+    const iconSize = 36 * scale; 
+    const iconX = x + boxWidth - padding - iconSize;
+    const iconY = y + padding;
+    
+    ctx.save();
+    ctx.translate(iconX + iconSize / 2, iconY + iconSize / 2);
+    ctx.rotate(steeringAngle * Math.PI / 180); 
+    ctx.translate(-iconSize / 2, -iconSize / 2);
+    ctx.scale(iconSize / 100, iconSize / 100); 
+    
+    ctx.fillStyle = wheelColor;
+    
+    const wheelPath = new Path2D();
+    wheelPath.arc(50, 50, 45, 0, Math.PI * 2);
+    wheelPath.arc(50, 50, 30, 0, Math.PI * 2, true);
+    wheelPath.moveTo(62, 50);
+    wheelPath.arc(50, 50, 12, 0, Math.PI * 2);
+    wheelPath.rect(8, 42.5, 30, 15); 
+    wheelPath.rect(62, 42.5, 30, 15);
+    wheelPath.rect(42.5, 62, 15, 30);
+    
+    ctx.fill(wheelPath);
+    ctx.restore();
+
+    ctx.fillStyle = greenColor;
+    const arrowY = centerY - 15 * scale;
+    const arrowSize = 24 * scale; 
+    
+    const leftArrowX = x + boxWidth * 0.25;
+    const rightArrowX = x + boxWidth * 0.75;
+
+    const indicatorPath = new Path2D("M50 0 L90 50 L70 50 L70 100 L30 100 L30 50 L10 50 Z");
+
+    if (leftBlinker && showBlink) {
+        ctx.save();
+        ctx.translate(leftArrowX, arrowY);
+        ctx.rotate(-Math.PI / 2); 
+        ctx.translate(-arrowSize / 2, -arrowSize / 2);
+        ctx.scale(arrowSize / 100, arrowSize / 100); 
+        ctx.fill(indicatorPath);
+        ctx.restore();
+    }
+    if (rightBlinker && showBlink) {
+        ctx.save();
+        ctx.translate(rightArrowX, arrowY);
+        ctx.rotate(Math.PI / 2); 
+        ctx.translate(-arrowSize / 2, -arrowSize / 2);
+        ctx.scale(arrowSize / 100, arrowSize / 100); 
+        ctx.fill(indicatorPath);
+        ctx.restore();
+    }
+
+    const pedalIconSize = 24 * scale;
+    const pedalY = y + boxHeight - padding - pedalIconSize;
+
+    ctx.save();
+    ctx.translate(x + padding, pedalY);
+    ctx.scale(pedalIconSize / 24, pedalIconSize / 24);
+    ctx.fillStyle = brakeApplied ? activePedalColor : inactivePedalColor;
+    const brakePath = new Path2D("M4 2h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z");
+    ctx.fill(brakePath);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(x + boxWidth - padding - pedalIconSize, pedalY);
+    ctx.scale(pedalIconSize / 24, pedalIconSize / 24);
+    ctx.fillStyle = accelPos > 0 ? activePedalColor : inactivePedalColor;
+    const accelPath = new Path2D("M7 2h10c1.1 0 2 .9 2 2v16c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z");
+    ctx.fill(accelPath);
+    ctx.restore();
+
+    ctx.restore();
+}
+
+// -------------------------------------------------------------
+// WEBM WRITER (Fixed - No VINT-encoding of IDs)
+// -------------------------------------------------------------
+class WebMWriter {
+    constructor(codec) {
+        this.blobs = [];
+        this.clusterTimecode = 0;
+        this.clusterStartOffset = -1;
+        this.headerWritten = false;
+        this.currentCluster = [];
+        this.clusterDuration = 1000; 
+        this.codec = codec || 'vp8';
+        this.totalSize = 0;
+        this.segmentContentStart = 0;
+        this.segmentInfoStart = 0;
+    }
+
+    // Write VINT (Variable Size Integer) for SIZES
+    getVint(value) {
+        let len = 1;
+        if (value < 127) len = 1;
+        else if (value < 16383) len = 2;
+        else if (value < 2097151) len = 3;
+        else if (value < 268435455) len = 4;
+        else if (value < 34359738367) len = 5;
+        else if (value < 4398046511103) len = 6;
+        else len = 7; 
+
+        const bytes = new Uint8Array(len);
+        let val = value;
+        for (let i = len - 1; i >= 0; i--) {
+            bytes[i] = val & 0xff;
+            val = Math.floor(val / 256);
+        }
+        bytes[0] |= (1 << (8 - len)); 
+        return bytes;
+    }
+
+    // Helper to write an Element ID (which is already a VINT in the spec)
+    getIdBytes(id) {
+        if (id < 0xFF) return new Uint8Array([id]);
+        if (id < 0xFFFF) return new Uint8Array([id >> 8, id & 0xFF]);
+        if (id < 0xFFFFFF) return new Uint8Array([id >> 16, (id >> 8) & 0xFF, id & 0xFF]);
+        return new Uint8Array([id >> 24, (id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF]);
+    }
+
+    createElement(id, value) {
+        const idBytes = this.getIdBytes(id);
+        let dataBytes;
+
+        if (typeof value === 'string') {
+            dataBytes = new TextEncoder().encode(value);
+        } else if (value instanceof Uint8Array) {
+            dataBytes = value;
+        } else if (typeof value === 'number') {
+            let size = 1;
+            if (value > 0xffffff) size = 4; 
+            else if (value > 0xffff) size = 3;
+            else if (value > 0xff) size = 2;
+            
+            dataBytes = new Uint8Array(size);
+            let v = value;
+            for (let i = size - 1; i >= 0; i--) {
+                dataBytes[i] = v & 0xff;
+                v = Math.floor(v / 256);
+            }
+        }
+        
+        const sizeBytes = this.getVint(dataBytes.length);
+        const total = new Uint8Array(idBytes.length + sizeBytes.length + dataBytes.length);
+        total.set(idBytes, 0);
+        total.set(sizeBytes, idBytes.length);
+        total.set(dataBytes, idBytes.length + sizeBytes.length);
+        return total;
+    }
+    
+    createMaster(id, children) {
+        let size = 0;
+        children.forEach(c => size += c.length);
+        
+        const idBytes = this.getIdBytes(id);
+        const sizeBytes = this.getVint(size);
+        
+        const total = new Uint8Array(idBytes.length + sizeBytes.length + size);
+        let offset = 0;
+        
+        total.set(idBytes, offset); offset += idBytes.length;
+        total.set(sizeBytes, offset); offset += sizeBytes.length;
+        
+        children.forEach(c => {
+            total.set(c, offset);
+            offset += c.length;
+        });
+        return total;
+    }
+
+    addBlob(blob) {
+        this.blobs.push(blob);
+        this.totalSize += blob.length;
+    }
+
+    writeHeader(width, height, codecPrivate) {
+        const codecId = this.codec.includes('vp9') ? "V_VP9" : "V_VP8";
+
+        const ebmlHeader = this.createMaster(0x1A45DFA3, [
+            this.createElement(0x4286, 1), 
+            this.createElement(0x42F7, 1), 
+            this.createElement(0x42F2, 4), 
+            this.createElement(0x42F3, 8), 
+            this.createElement(0x4282, "webm"), 
+            this.createElement(0x4287, 4), 
+            this.createElement(0x4285, 2) 
+        ]);
+        this.addBlob(ebmlHeader);
+
+        // Segment with placeholder size (0x18538067 + 8 byte VINT)
+        this.addBlob(new Uint8Array([0x18, 0x53, 0x80, 0x67, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]));
+        this.segmentContentStart = this.totalSize;
+
+        // Info with Duration Placeholder
+        // Duration ID: 0x4489, Type: Float (8 bytes usually for double precision)
+        // We will create the Info block manually to keep a reference to patch the duration
+        // Children: TimecodeScale, MuxingApp, WritingApp, Duration(placeholder)
+        const timecodeScale = this.createElement(0x2AD7B1, 1000000);
+        const muxingApp = this.createElement(0x4D80, "JS-Dashcam");
+        const writingApp = this.createElement(0x5741, "JS-Dashcam");
+        
+        // Placeholder duration (8 bytes double) - 0x4489 + VINT size + 8 bytes
+        // 44 89 88 00 00 00 00 00 00 00 00
+        const durationPlaceholder = new Uint8Array([0x44, 0x89, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        
+        const info = this.createMaster(0x1549A966, [timecodeScale, muxingApp, writingApp, durationPlaceholder]);
+        
+        // Record where the Info block starts so we can find Duration
+        // Info is the 3rd blob pushed (EBML, SegmentHeader, Info)
+        this.addBlob(info);
+
+        const trackEntryChildren = [
+            this.createElement(0xD7, 1), 
+            this.createElement(0x73C5, 1), 
+            this.createElement(0x83, 1), 
+            this.createElement(0x86, codecId), 
+            this.createElement(0x23E383, 33333333), // DefaultDuration 30fps
+            this.createMaster(0xE0, [ 
+                this.createElement(0xB0, width),
+                this.createElement(0xBA, height)
+            ])
+        ];
+
+        if (codecPrivate) {
+            const cpBytes = new Uint8Array(codecPrivate);
+            trackEntryChildren.push(this.createElement(0x63A2, cpBytes));
+        }
+
+        const tracks = this.createMaster(0x1654AE6B, [
+            this.createMaster(0xAE, trackEntryChildren)
+        ]);
+        this.addBlob(tracks);
+        
+        this.headerWritten = true;
+    }
+
+    flushCluster() {
+        if (this.currentCluster.length === 0) return;
+        const timecodeElt = this.createElement(0xE7, Math.round(this.clusterTimecode));
+        const children = [timecodeElt, ...this.currentCluster];
+        const cluster = this.createMaster(0x1F43B675, children);
+        this.addBlob(cluster);
+        this.currentCluster = [];
+    }
+
+    addFrame(chunk, meta, width, height) {
+        if (!this.headerWritten) {
+            let codecPrivate = null;
+            if (meta && meta.decoderConfig && meta.decoderConfig.description) {
+                codecPrivate = meta.decoderConfig.description;
+            }
+            this.writeHeader(width, height, codecPrivate);
+        }
+
+        const timecode = chunk.timestamp / 1000;
+
+        if (this.clusterStartOffset === -1) {
+            this.clusterStartOffset = 0;
+            this.clusterTimecode = timecode;
+        } else if (timecode - this.clusterTimecode >= this.clusterDuration) {
+            this.flushCluster();
+            this.clusterTimecode = timecode;
+        }
+
+        const relTime = Math.round(timecode - this.clusterTimecode);
+        if (relTime < 0 || relTime > 32767) return; 
+
+        const flags = (chunk.type === 'key' ? 0x80 : 0x00);
+        const header = new Uint8Array(4);
+        header[0] = 0x81; 
+        header[1] = (relTime >> 8) & 0xff;
+        header[2] = relTime & 0xff;
+        header[3] = flags;
+
+        const idBytes = this.getIdBytes(0xA3);
+        const sizeBytes = this.getVint(4 + chunk.byteLength);
+        
+        const block = new Uint8Array(idBytes.length + sizeBytes.length + 4 + chunk.byteLength);
+        let offset = 0;
+        block.set(idBytes, offset); offset += idBytes.length;
+        block.set(sizeBytes, offset); offset += sizeBytes.length;
+        block.set(header, offset); offset += 4;
+        
+        const data = new Uint8Array(chunk.byteLength);
+        chunk.copyTo(data);
+        block.set(data, offset);
+
+        this.currentCluster.push(block);
+        this.lastTimecode = timecode;
+    }
+
+    finalize() {
+        this.flushCluster();
+        
+        // 1. Patch Segment Size
+        const segmentSize = this.totalSize - this.segmentContentStart;
+        const sizeBytes = new Uint8Array(8);
+        let val = segmentSize;
+        for (let i = 7; i >= 0; i--) {
+            sizeBytes[i] = val & 0xff;
+            val = Math.floor(val / 256);
+        }
+        sizeBytes[0] |= 0x01; 
+        this.blobs[1].set(sizeBytes, 4);
+
+        // 2. Patch Duration (Info blob is index 2)
+        // Duration is a float (double)
+        // Last 8 bytes of Info blob is our placeholder
+        const durationVal = this.lastTimecode || 0;
+        const dv = new DataView(new ArrayBuffer(8));
+        dv.setFloat64(0, durationVal, false); // Big Endian
+        
+        const infoBlob = this.blobs[2];
+        const len = infoBlob.length;
+        infoBlob.set(new Uint8Array(dv.buffer), len - 8);
+    }
+
+    getBlob() {
+        return new Blob(this.blobs, { type: 'video/webm' });
+    }
+}
+
+// -------------------------------------------------------------
+// EXPORT PIPELINE
+// -------------------------------------------------------------
+
+async function exportVideo() {
+    if (!frames || isExporting) return;
+    
+    // Choose VP8 by default if not changed
+    const codec = formatSelect.value || 'vp8'; 
+    
+    isExporting = true;
+    exportCsvBtn.disabled = true;
+    exportVideoBtn.disabled = true;
+    formatSelect.disabled = true;
+    playBtn.disabled = true;
+    slider.disabled = true;
+    
+    exportVideoBtn.textContent = 'Rendering...';
+
+    const webmWriter = new WebMWriter(codec);
+    const config = mp4.getConfig();
+
+    let exportDecoder = null;
+    let videoEncoder = null;
+    let encodeError = null;
+    let framesProcessed = 0;
+    
+    try {
+        videoEncoder = new VideoEncoder({
+            output: (chunk, meta) => {
+                webmWriter.addFrame(chunk, meta, config.width, config.height);
+            },
+            error: (e) => {
+                console.error("Encoder error", e);
+                encodeError = e;
+            }
+        });
+        
+videoEncoder.configure({
+    codec: codec,
+    width: config.width,
+    height: config.height,
+    bitrate: 5_000_000, 
+    bitrateMode: 'variable',  // ADD THIS LINE
+    alpha: 'discard'
+});
+
+        exportDecoder = new VideoDecoder({
+            output: async (frame) => {
+                if (encodeError || !isExporting) { frame.close(); return; }
+                
+                // 1. Draw frame to canvas
+                ctx.drawImage(frame, 0, 0);
+                
+                // 2. Draw Overlay to canvas
+                try {
+                    const frameIdx = Math.round(frame.timestamp / 33333);
+                    if (frames[frameIdx] && frames[frameIdx].sei) {
+                        drawMetadataOverlay(frames[frameIdx].sei, frameIdx);
+                    }
+                    if (framesProcessed % 15 === 0) { 
+                        slider.value = frameIdx;
+                        frameNum.textContent = `Exporting ${frameIdx + 1}/${frames.length}`;
+                    }
+                } catch(e) {}
+
+                // 3. Create NEW frame from canvas (with overlay!)
+                // Use precise 30fps timestamp calculation to avoid drift/jitter
+                const timestamp = frame.timestamp;
+                const duration = frame.duration || 33333;           
+                const keyFrame = (framesProcessed % 60 === 0);
+                
+                if (videoEncoder.state === 'configured') {
+                    const overlayFrame = new VideoFrame(canvas, { 
+                        timestamp, 
+                        duration,
+                        displayWidth: canvas.width,
+                        displayHeight: canvas.height
+                    });
+                    videoEncoder.encode(overlayFrame, { keyFrame });
+                    overlayFrame.close();
+                }
+                framesProcessed++;
+            },
+            error: (e) => console.error("Decoder error", e)
+        });
+        
+        exportDecoder.configure({
+            codec: config.codec,
+            width: config.width,
+            height: config.height
+        });
+
+        for (let i = firstKeyframe; i < frames.length; i++) {
+            if (!isExporting || encodeError) break;
+            
+            if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+
+            while ((videoEncoder.encodeQueueSize > 5 || exportDecoder.decodeQueueSize > 15) && isExporting) {
+                await new Promise(r => setTimeout(r, 10));
+            }
+
+            if (exportDecoder.state === 'configured') {
+             exportDecoder.decode(createChunk(frames[i], true)); // Add true here
+            }
+        }
+
+        if (exportDecoder.state === 'configured') await exportDecoder.flush();
+        if (videoEncoder.state === 'configured') await videoEncoder.flush();
+
+        if (isExporting && !encodeError) {
+            webmWriter.finalize();
+            const blob = webmWriter.getBlob();
+            DashcamHelpers.downloadBlob(blob, (currentFileName || 'dashcam').replace(/\.mp4$/i, '') + `_overlay.webm`);
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert("Export failed: " + e.message);
+    } finally {
+        try { if(exportDecoder && exportDecoder.state !== 'closed') exportDecoder.close(); } catch(e){}
+        try { if(videoEncoder && videoEncoder.state !== 'closed') videoEncoder.close(); } catch(e){}
+        
+        isExporting = false;
+        exportCsvBtn.disabled = false;
+        exportVideoBtn.disabled = false;
+        formatSelect.disabled = false;
+        playBtn.disabled = false;
+        slider.disabled = false;
+        exportVideoBtn.textContent = 'Export Video';
+    }
+}
+
+async function exportCsv() {
+    if (!frames || !seiFieldsCsv) return;
+    const messages = frames.map(f => f.sei).filter(Boolean);
+    if (!messages.length) { alert('No SEI metadata to export.'); return; }
+    const filename = (currentFileName || 'dashcam').replace(/\.mp4$/i, '') + '_sei.csv';
+    DashcamHelpers.downloadBlob(new Blob([DashcamHelpers.buildCsv(messages, seiFieldsCsv)], { type: 'text/csv' }), filename);
+}
+</script>
 </body>
-
 </html>
