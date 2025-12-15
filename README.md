@@ -8,6 +8,7 @@ The updates are:
 
 1. Added a nice visual overlay from the SEI metadata
 2. Added an export function to download the overlaid clip after processing
+3. Added MP4 export option
 
 ## Usage
 
