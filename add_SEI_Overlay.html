@@ -103,9 +103,6 @@
             
             <div class="export-group">
                 <button class="export-btn" id="exportCsvBtn" disabled>Export CSV</button>
-                <select id="formatSelect" class="format-select" disabled>
-                    <option value="" disabled selected>Loading formats...</option>
-                </select>
                 <button class="export-btn" id="exportVideoBtn" disabled>Export Video</button>
             </div>
         </aside>
@@ -132,7 +129,6 @@ const dropOverlay = $('dropOverlay'), fileInput = $('fileInput');
 const canvas = $('canvas'), ctx = canvas.getContext('2d');
 const slider = $('slider'), playBtn = $('playBtn');
 const exportCsvBtn = $('exportCsvBtn'), exportVideoBtn = $('exportVideoBtn');
-const formatSelect = $('formatSelect');
 const frameNum = $('frameNum'), fileName = $('fileName'), metaList = $('metaList');
 
 // --- EVENTS ---
@@ -169,37 +165,6 @@ exportCsvBtn.onclick = exportCsv;
 exportVideoBtn.onclick = exportVideo;
 
 // --- INITIALIZATION ---
-const supportedFormats = [
-    { mime: 'vp8', label: 'WebM (VP8) - Recommended', ext: 'webm' },
-    { mime: 'vp09.00.10.08', label: 'WebM (VP9)', ext: 'webm' }
-];
-
-function initFormats() {
-    formatSelect.innerHTML = '';
-    let found = false;
-    supportedFormats.forEach(fmt => {
-        if (typeof VideoEncoder !== 'undefined') {
-            VideoEncoder.isConfigSupported({ codec: fmt.mime, width: 640, height: 480 }).then(support => {
-                if (support.supported) {
-                    const opt = document.createElement('option');
-                    opt.value = fmt.mime;
-                    opt.textContent = fmt.label;
-                    formatSelect.appendChild(opt);
-                    found = true;
-                }
-            });
-        }
-    });
-    setTimeout(() => {
-        if (!found && formatSelect.options.length === 0) {
-            const opt = document.createElement('option');
-            opt.value = 'vp8';
-            opt.textContent = "WebM (VP8) - Fallback";
-            formatSelect.appendChild(opt);
-        }
-    }, 500);
-}
-initFormats();
 
 DashcamHelpers.initProtobuf().then(({ SeiMetadata, enumFields }) => {
     seiType = SeiMetadata;
@@ -272,7 +237,6 @@ async function loadFile(file) {
 
         exportCsvBtn.disabled = false;
         exportVideoBtn.disabled = false;
-        formatSelect.disabled = false;
         playBtn.disabled = false;
         slider.disabled = false;
 
@@ -290,7 +254,7 @@ function resetUI() {
     mp4 = null; frames = null; firstKeyframe = 0; currentFileName = null;
     slider.max = 0; slider.value = 0;
     frameNum.textContent = 'Frame 0/0'; fileName.textContent = 'No file loaded';
-    exportCsvBtn.disabled = true; exportVideoBtn.disabled = true; formatSelect.disabled = true;
+    exportCsvBtn.disabled = true; exportVideoBtn.disabled = true;
     playBtn.disabled = true; slider.disabled = true;
     dropOverlay.classList.remove('hidden');
 }
@@ -867,13 +831,12 @@ class WebMWriter {
 async function exportVideo() {
     if (!frames || isExporting) return;
     
-    // Choose VP8 by default if not changed
-    const codec = formatSelect.value || 'vp8'; 
+    // Use VP8 codec
+    const codec = 'vp8';
     
     isExporting = true;
     exportCsvBtn.disabled = true;
     exportVideoBtn.disabled = true;
-    formatSelect.disabled = true;
     playBtn.disabled = true;
     slider.disabled = true;
     
@@ -986,7 +949,6 @@ videoEncoder.configure({
         isExporting = false;
         exportCsvBtn.disabled = false;
         exportVideoBtn.disabled = false;
-        formatSelect.disabled = false;
         playBtn.disabled = false;
         slider.disabled = false;
         exportVideoBtn.textContent = 'Export Video';
