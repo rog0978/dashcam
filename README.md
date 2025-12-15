@@ -1,6 +1,6 @@
 # Dashcam Overlay Creator
 
-![Screenshot of Dashcam SEI Explorer](https://github.com/rog0978/dashcam/blob/master/Screenshot%202025-12-14%20at%2021.13.01.png)
+![Screenshot of Dashcam SEI Explorer](https://github.com/rog0978/dashcam/blob/master/screenshot.png)
 
 This is a fork of the **[original Tesla Dashcam repo](https://github.com/teslamotors/dashcam)**. 
 
