@@ -74,7 +74,10 @@
 <div class="app">
     <header class="header">
         <h1>Tesla Dashcam SEI Explorer</h1>
-        <p class="subtitle">Overlay processing happens locally.</strong></p>
+        <p class="subtitle">Overlay processing happens locally. <strong>Ensure you run this on a local web server (not file://).</strong></p>
+        <p class="subtitle" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">
+            💡 <strong>Multi-file mode:</strong> Select or drop multiple MP4 files. They will be sorted by timestamp (format: YYYY-MM-DD_HH-MM-SS) and merged into one video when exported.
+        </p>
     </header>
     <main class="main">
         <section class="video-section">
@@ -86,10 +89,13 @@
                 <canvas id="canvas"></canvas>
             </div>
             <div class="scrubber">
+                <button id="prevFileBtn" title="Previous File" disabled style="font-size: 12px; width: auto; padding: 0 8px;">◀ Prev</button>
                 <button id="playBtn" title="Play/Pause" disabled>
                     <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20" /></svg>
                 </button>
                 <input type="range" id="slider" min="0" max="0" value="0" disabled>
+                <span id="fileCounter" style="font-size: 12px; color: var(--text-muted); min-width: 60px; text-align: center;"></span>
+                <button id="nextFileBtn" title="Next File" disabled style="font-size: 12px; width: auto; padding: 0 8px;">Next ▶</button>
             </div>
         </section>
         <aside class="meta-section">
@@ -107,6 +113,7 @@
                     <option value="" disabled selected>Loading formats...</option>
                 </select>
                 <button class="export-btn" id="exportVideoBtn" disabled>Export Video</button>
+                <button class="export-btn" id="resetBtn" style="background: #ff3b30; margin-top: 12px;" title="Clear all files and reset">Reset</button>
             </div>
         </aside>
     </main>
@@ -125,6 +132,8 @@ let playbackDecoder = null; // Reused decoder for playback
 let decoding = false, pendingFrame = null;
 let playing = false, playTimer = null;
 let isExporting = false;
+let fileQueue = [];
+let currentFileIndex = 0;
 
 // --- DOM ---
 const $ = id => document.getElementById(id);
@@ -134,10 +143,38 @@ const slider = $('slider'), playBtn = $('playBtn');
 const exportCsvBtn = $('exportCsvBtn'), exportVideoBtn = $('exportVideoBtn');
 const formatSelect = $('formatSelect');
 const frameNum = $('frameNum'), fileName = $('fileName'), metaList = $('metaList');
+const prevFileBtn = $('prevFileBtn'), nextFileBtn = $('nextFileBtn'), fileCounter = $('fileCounter');
+const resetBtn = $('resetBtn');
 
 // --- EVENTS ---
 dropOverlay.onclick = () => fileInput.click();
 fileInput.onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
+
+prevFileBtn.onclick = () => {
+    if (fileQueue.length > 1 && currentFileIndex > 0) {
+        currentFileIndex--;
+        loadFile(fileQueue[currentFileIndex]);
+    }
+};
+
+nextFileBtn.onclick = () => {
+    if (fileQueue.length > 1 && currentFileIndex < fileQueue.length - 1) {
+        currentFileIndex++;
+        loadFile(fileQueue[currentFileIndex]);
+    }
+};
+
+resetBtn.onclick = () => {
+    if (confirm('Clear all files and reset?')) {
+        pause();
+        if (playbackDecoder) { 
+            try { playbackDecoder.close(); } catch { } 
+            playbackDecoder = null; 
+        }
+        resetUI();
+    }
+};
+
 document.ondragover = e => { e.preventDefault(); dropOverlay.classList.add('dragover'); };
 document.ondragleave = e => { if (!e.relatedTarget) dropOverlay.classList.remove('dragover'); };
 document.ondrop = async e => {
@@ -219,27 +256,33 @@ async function handleFiles(fileList, directoryName = null) {
         }
     }
 
-    const files = (Array.isArray(fileList) ? fileList : Array.from(fileList))
+    let files = (Array.isArray(fileList) ? fileList : Array.from(fileList))
         .filter(f => f.name.toLowerCase().endsWith('.mp4'));
 
     if (!files.length) { alert('Please choose at least one MP4 file.'); return; }
-    if (files.length === 1) { loadFile(files[0]); return; }
-
-    const zip = new JSZip();
-    let exported = 0;
-    for (const file of files) {
-        try {
-            const mp4 = new DashcamMP4(await file.arrayBuffer());
-            const messages = mp4.extractSeiMessages(seiType);
-            if (messages.length) {
-                zip.file(file.name.replace(/\.mp4$/i, '_sei.csv'), DashcamHelpers.buildCsv(messages, seiFieldsCsv));
-                exported++;
+    
+    // Sort files by timestamp in filename (format: 2025-12-14_08-45-08)
+    files = files.sort((a, b) => {
+        const extractTimestamp = (name) => {
+            const match = name.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/);
+            if (match) {
+                // Convert to comparable format: 2025-12-14_08-45-08 -> 20251214084508
+                return match[1].replace(/[-_]/g, '');
             }
-        } catch { }
+            return name; // Fall back to filename for sorting
+        };
+        return extractTimestamp(a.name).localeCompare(extractTimestamp(b.name));
+    });
+    
+    if (files.length === 1) { 
+        loadFile(files[0]); 
+        return; 
     }
-    if (!exported) { alert('No files produced SEI metadata.'); return; }
-    DashcamHelpers.downloadBlob(await zip.generateAsync({ type: 'blob' }), directoryName ? `${directoryName}_sei.zip` : 'dashcam_sei_metadata.zip');
-    alert(`Exported ${exported} CSVs as ZIP.`);
+
+    // Multiple files - store queue for sequential processing
+    fileQueue = files;
+    currentFileIndex = 0;
+    loadFile(fileQueue[0]);
 }
 
 async function loadFile(file) {
@@ -248,6 +291,11 @@ async function loadFile(file) {
 
     pause();
     if (playbackDecoder) { try { playbackDecoder.close(); } catch { } playbackDecoder = null; }
+    
+    // Reset smoothed accelerometer values when loading new file
+    smoothedAccelX = 0;
+    smoothedAccelY = 0;
+    smoothedTotalG = 0;
 
     metaList.innerHTML = '';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -274,6 +322,17 @@ async function loadFile(file) {
         formatSelect.disabled = false;
         playBtn.disabled = false;
         slider.disabled = false;
+        
+        // Update file navigation
+        if (fileQueue.length > 1) {
+            fileCounter.textContent = `${currentFileIndex + 1} / ${fileQueue.length}`;
+            prevFileBtn.disabled = currentFileIndex === 0;
+            nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
+        } else {
+            fileCounter.textContent = '';
+            prevFileBtn.disabled = true;
+            nextFileBtn.disabled = true;
+        }
 
         // Initialize persistent decoder for playback
         initPlaybackDecoder();
@@ -291,6 +350,9 @@ function resetUI() {
     frameNum.textContent = 'Frame 0/0'; fileName.textContent = 'No file loaded';
     exportCsvBtn.disabled = true; exportVideoBtn.disabled = true; formatSelect.disabled = true;
     playBtn.disabled = true; slider.disabled = true;
+    prevFileBtn.disabled = true; nextFileBtn.disabled = true;
+    fileCounter.textContent = '';
+    fileQueue = []; currentFileIndex = 0;
     dropOverlay.classList.remove('hidden');
 }
 
@@ -640,7 +702,8 @@ function drawMetadataOverlay(sei, frameIndex) {
 // Smoothing for accelerometer display
 let smoothedAccelX = 0;
 let smoothedAccelY = 0;
-const accelSmoothingFactor = 0.3; // Lower = smoother, higher = more responsive
+let smoothedTotalG = 0;
+const accelSmoothingFactor = 0.15; // Lower = smoother, higher = more responsive
 
 function drawAccelerometer(sei, scale) {
     let accelX = sei.linearAccelerationMps2X || 0;
@@ -657,10 +720,10 @@ function drawAccelerometer(sei, scale) {
     smoothedAccelX = smoothedAccelX + (accelX - smoothedAccelX) * accelSmoothingFactor;
     smoothedAccelY = smoothedAccelY + (accelY - smoothedAccelY) * accelSmoothingFactor;
     
-    // Widget dimensions
-    const widgetSize = 120 * scale;
+    // Widget dimensions - 50% bigger
+    const widgetSize = 180 * scale;
     const padding = 20 * scale;
-    const cornerRadius = 15 * scale;
+    const cornerRadius = 22 * scale;
     
     // Position in lower right
     const wx = canvas.width - widgetSize - padding;
@@ -682,27 +745,27 @@ function drawAccelerometer(sei, scale) {
     
     // Title at top
     ctx.fillStyle = textColor;
-    ctx.font = `600 ${11 * scale}px sans-serif`;
+    ctx.font = `600 ${16 * scale}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('G-FORCE', wx + widgetSize / 2, wy + 14 * scale);
+    ctx.fillText('G-FORCE', wx + widgetSize / 2, wy + 20 * scale);
     
     // G-Force circle area - moved down
     const centerX = wx + widgetSize / 2;
-    const centerY = wy + widgetSize / 2 + 5 * scale;
-    const radius = 40 * scale;
+    const centerY = wy + widgetSize / 2 + 8 * scale;
+    const radius = 60 * scale;
     
     // Outer ring
     ctx.strokeStyle = ringColor;
-    ctx.lineWidth = 2 * scale;
+    ctx.lineWidth = 2.5 * scale;
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.stroke();
     
     // Inner reference circles (0.5g)
     ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 1 * scale;
-    ctx.setLineDash([3 * scale, 3 * scale]);
+    ctx.lineWidth = 1.5 * scale;
+    ctx.setLineDash([4 * scale, 4 * scale]);
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
     ctx.stroke();
@@ -710,7 +773,7 @@ function drawAccelerometer(sei, scale) {
     
     // Crosshairs
     ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 1 * scale;
+    ctx.lineWidth = 1.5 * scale;
     ctx.beginPath();
     ctx.moveTo(centerX - radius, centerY);
     ctx.lineTo(centerX + radius, centerY);
@@ -737,37 +800,38 @@ function drawAccelerometer(sei, scale) {
     }
     
     // Draw trail/glow effect
-    const gradient = ctx.createRadialGradient(finalDotX, finalDotY, 0, finalDotX, finalDotY, 12 * scale);
+    const gradient = ctx.createRadialGradient(finalDotX, finalDotY, 0, finalDotX, finalDotY, 18 * scale);
     gradient.addColorStop(0, 'rgba(0, 122, 255, 0.6)');
     gradient.addColorStop(1, 'rgba(0, 122, 255, 0)');
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(finalDotX, finalDotY, 12 * scale, 0, Math.PI * 2);
+    ctx.arc(finalDotX, finalDotY, 18 * scale, 0, Math.PI * 2);
     ctx.fill();
     
     // Draw main dot
     ctx.fillStyle = dotColor;
     ctx.beginPath();
-    ctx.arc(finalDotX, finalDotY, 6 * scale, 0, Math.PI * 2);
+    ctx.arc(finalDotX, finalDotY, 9 * scale, 0, Math.PI * 2);
     ctx.fill();
     
     // Calculate total lateral G-force using smoothed values
-    const totalLateralG = Math.sqrt((smoothedAccelX * smoothedAccelX) + (smoothedAccelY * smoothedAccelY)) / 9.81;
+    const rawTotalG = Math.sqrt((smoothedAccelX * smoothedAccelX) + (smoothedAccelY * smoothedAccelY)) / 9.81;
+    smoothedTotalG = smoothedTotalG + (rawTotalG - smoothedTotalG) * accelSmoothingFactor;
     
     // Draw G-force number near the dot
-    if (totalLateralG > 0.02) {
-        const labelOffset = 18 * scale;
+    if (smoothedTotalG > 0.02) {
+        const labelOffset = 24 * scale;
         const labelAngle = Math.atan2(finalDotY - centerY, finalDotX - centerX);
         const labelX = finalDotX + Math.cos(labelAngle) * labelOffset;
         const labelY = finalDotY + Math.sin(labelAngle) * labelOffset;
         
-        const gText = totalLateralG.toFixed(2);
-        ctx.font = `600 ${9 * scale}px sans-serif`;
+        const gText = smoothedTotalG.toFixed(2);
+        ctx.font = `600 ${14 * scale}px sans-serif`;
         const textWidth = ctx.measureText(gText).width;
-        const pillPadding = 3 * scale;
+        const pillPadding = 5 * scale;
         
         ctx.fillStyle = 'rgba(0, 122, 255, 0.85)';
-        roundRect(ctx, labelX - textWidth/2 - pillPadding, labelY - 6 * scale, textWidth + pillPadding * 2, 12 * scale, 4 * scale, true, false);
+        roundRect(ctx, labelX - textWidth/2 - pillPadding, labelY - 9 * scale, textWidth + pillPadding * 2, 18 * scale, 6 * scale, true, false);
         
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
@@ -778,7 +842,7 @@ function drawAccelerometer(sei, scale) {
     // Draw center reference dot
     ctx.fillStyle = secondaryTextColor;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 3 * scale, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, 4 * scale, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.restore();
@@ -1435,14 +1499,60 @@ async function exportVideo() {
     formatSelect.disabled = true;
     playBtn.disabled = true;
     slider.disabled = true;
+    prevFileBtn.disabled = true;
+    nextFileBtn.disabled = true;
     
-    exportVideoBtn.textContent = 'Rendering...';
+    const filesToExport = fileQueue.length > 1 ? fileQueue : [{ name: currentFileName, _currentMp4: mp4, _currentFrames: frames }];
+    const totalFiles = filesToExport.length;
+    
+    exportVideoBtn.textContent = `Preparing... (0/${totalFiles})`;
 
-    const config = mp4.getConfig();
+    // We need to get config from first file for encoder setup
+    let firstConfig = null;
+    let totalFrameCount = 0;
     
-    // Calculate actual average framerate from source video durations
-    const avgDurationMs = config.durations.length > 0 
-        ? config.durations.reduce((a, b) => a + b, 0) / config.durations.length 
+    // Pre-scan all files to get total frame count and verify dimensions match
+    const fileData = [];
+    for (let f = 0; f < filesToExport.length; f++) {
+        let fileMp4, fileFrames;
+        if (filesToExport[f]._currentMp4) {
+            // Current file already loaded
+            fileMp4 = filesToExport[f]._currentMp4;
+            fileFrames = filesToExport[f]._currentFrames;
+        } else {
+            // Load file
+            const file = filesToExport[f];
+            fileMp4 = new DashcamMP4(await file.arrayBuffer());
+            fileFrames = fileMp4.parseFrames(seiType);
+        }
+        
+        const config = fileMp4.getConfig();
+        if (!firstConfig) {
+            firstConfig = config;
+        } else if (config.width !== firstConfig.width || config.height !== firstConfig.height) {
+            alert(`File ${filesToExport[f].name} has different dimensions. All files must have the same resolution.`);
+            isExporting = false;
+            exportCsvBtn.disabled = false;
+            exportVideoBtn.disabled = false;
+            formatSelect.disabled = false;
+            playBtn.disabled = false;
+            slider.disabled = false;
+            if (fileQueue.length > 1) {
+                prevFileBtn.disabled = currentFileIndex === 0;
+                nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
+            }
+            exportVideoBtn.textContent = 'Export Video';
+            return;
+        }
+        
+        const firstKf = fileFrames.findIndex(fr => fr.keyframe);
+        totalFrameCount += fileFrames.length - (firstKf >= 0 ? firstKf : 0);
+        fileData.push({ mp4: fileMp4, frames: fileFrames, config, firstKeyframe: firstKf >= 0 ? firstKf : 0 });
+    }
+    
+    // Calculate actual average framerate from first file
+    const avgDurationMs = firstConfig.durations.length > 0 
+        ? firstConfig.durations.reduce((a, b) => a + b, 0) / firstConfig.durations.length 
         : 33.333;
     const actualFramerate = 1000 / avgDurationMs;
     
@@ -1454,14 +1564,19 @@ async function exportVideo() {
     let exportDecoder = null;
     let videoEncoder = null;
     let encodeError = null;
-    let framesProcessed = 0;
+    let globalFramesProcessed = 0;
     // Track cumulative timestamp based on actual frame durations
     let cumulativeTimestampUs = 0;
+    
+    // Reset smoothed accelerometer for consistent export
+    smoothedAccelX = 0;
+    smoothedAccelY = 0;
+    smoothedTotalG = 0;
     
     try {
         videoEncoder = new VideoEncoder({
             output: (chunk, meta) => {
-                writer.addFrame(chunk, meta, config.width, config.height);
+                writer.addFrame(chunk, meta, firstConfig.width, firstConfig.height);
             },
             error: (e) => {
                 console.error("Encoder error", e);
@@ -1472,8 +1587,8 @@ async function exportVideo() {
         // Configure encoder - H.264 needs avc format for proper AVCC output
         const encoderConfig = {
             codec: codec,
-            width: config.width,
-            height: config.height,
+            width: firstConfig.width,
+            height: firstConfig.height,
             bitrate: 5_000_000, 
             framerate: actualFramerate
         };
@@ -1487,72 +1602,127 @@ async function exportVideo() {
         
         videoEncoder.configure(encoderConfig);
 
-        exportDecoder = new VideoDecoder({
-            output: async (frame) => {
-                if (encodeError || !isExporting) { frame.close(); return; }
-                
-                // 1. Draw frame to canvas
-                ctx.drawImage(frame, 0, 0);
-                
-                // 2. Draw Overlay to canvas - find frame index from timestamp
-                const actualFrameIdx = firstKeyframe + framesProcessed;
-                try {
-                    if (frames[actualFrameIdx] && frames[actualFrameIdx].sei) {
-                        drawMetadataOverlay(frames[actualFrameIdx].sei, actualFrameIdx);
-                    }
-                    if (framesProcessed % 15 === 0) { 
-                        slider.value = actualFrameIdx;
-                        frameNum.textContent = `Exporting ${actualFrameIdx + 1}/${frames.length}`;
-                    }
-                } catch(e) {}
-
-                // 3. Create NEW frame from canvas (with overlay!)
-                // Use actual frame duration from source video
-                const frameDurationMs = config.durations[actualFrameIdx] || avgDurationMs;
-                const timestamp = Math.round(cumulativeTimestampUs);
-                const duration = Math.round(frameDurationMs * 1000); // ms to microseconds
-                const keyFrame = (framesProcessed % 60 === 0);
-                
-                if (videoEncoder.state === 'configured') {
-                    const overlayFrame = new VideoFrame(canvas, { timestamp, duration });
-                    videoEncoder.encode(overlayFrame, { keyFrame });
-                    overlayFrame.close();
-                }
-                frame.close();
-                // Advance cumulative timestamp by actual frame duration
-                cumulativeTimestampUs += frameDurationMs * 1000;
-                framesProcessed++;
-            },
-            error: (e) => console.error("Decoder error", e)
-        });
-        
-        exportDecoder.configure({
-            codec: config.codec,
-            width: config.width,
-            height: config.height
-        });
-
-        for (let i = firstKeyframe; i < frames.length; i++) {
+        // Process each file
+        for (let fileIdx = 0; fileIdx < fileData.length; fileIdx++) {
             if (!isExporting || encodeError) break;
             
-            if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
-
-            while ((videoEncoder.encodeQueueSize > 5 || exportDecoder.decodeQueueSize > 15) && isExporting) {
-                await new Promise(r => setTimeout(r, 10));
+            const { mp4: currentMp4, frames: currentFrames, config: currentConfig, firstKeyframe: currentFirstKf } = fileData[fileIdx];
+            
+            exportVideoBtn.textContent = `File ${fileIdx + 1}/${totalFiles}...`;
+            
+            // Create decoder for this file
+            if (exportDecoder && exportDecoder.state !== 'closed') {
+                await exportDecoder.flush();
+                exportDecoder.close();
             }
+            
+            let fileFramesProcessed = 0;
+            const fileFrameCount = currentFrames.length - currentFirstKf;
+            
+            await new Promise((resolve, reject) => {
+                exportDecoder = new VideoDecoder({
+                    output: async (frame) => {
+                        if (encodeError || !isExporting) { frame.close(); return; }
+                        
+                        // 1. Draw frame to canvas
+                        ctx.drawImage(frame, 0, 0);
+                        
+                        // 2. Draw Overlay to canvas
+                        const actualFrameIdx = currentFirstKf + fileFramesProcessed;
+                        try {
+                            if (currentFrames[actualFrameIdx] && currentFrames[actualFrameIdx].sei) {
+                                drawMetadataOverlay(currentFrames[actualFrameIdx].sei, actualFrameIdx);
+                            }
+                            if (globalFramesProcessed % 15 === 0) { 
+                                frameNum.textContent = `Exporting ${globalFramesProcessed + 1}/${totalFrameCount}`;
+                            }
+                        } catch(e) {}
 
-            if (exportDecoder.state === 'configured') {
-                 exportDecoder.decode(createChunk(frames[i]));
-            }
+                        // 3. Create NEW frame from canvas (with overlay!)
+                        const frameDurationMs = currentConfig.durations[actualFrameIdx] || avgDurationMs;
+                        const timestamp = Math.round(cumulativeTimestampUs);
+                        const duration = Math.round(frameDurationMs * 1000);
+                        const keyFrame = (globalFramesProcessed % 60 === 0);
+                        
+                        if (videoEncoder.state === 'configured') {
+                            const overlayFrame = new VideoFrame(canvas, { timestamp, duration });
+                            videoEncoder.encode(overlayFrame, { keyFrame });
+                            overlayFrame.close();
+                        }
+                        frame.close();
+                        cumulativeTimestampUs += frameDurationMs * 1000;
+                        fileFramesProcessed++;
+                        globalFramesProcessed++;
+                    },
+                    error: (e) => {
+                        console.error("Decoder error", e);
+                        reject(e);
+                    }
+                });
+                
+                exportDecoder.configure({
+                    codec: currentConfig.codec,
+                    width: currentConfig.width,
+                    height: currentConfig.height
+                });
+                
+                // Helper function to create chunks for this file
+                const createChunkForFile = (fr) => {
+                    const sc = new Uint8Array([0, 0, 0, 1]);
+                    const data = fr.keyframe
+                        ? DashcamMP4.concat(sc, fr.sps || currentConfig.sps, sc, fr.pps || currentConfig.pps, sc, fr.data)
+                        : DashcamMP4.concat(sc, fr.data);
+                    
+                    let timestamp = 0;
+                    for (let i = 0; i < fr.index; i++) {
+                        timestamp += (currentConfig.durations[i] || currentConfig.durations[0] || 33.333) * 1000;
+                    }
+                    
+                    return new EncodedVideoChunk({
+                        type: fr.keyframe ? 'key' : 'delta',
+                        timestamp: Math.round(timestamp),
+                        data
+                    });
+                };
+                
+                // Process all frames from this file
+                (async () => {
+                    for (let i = currentFirstKf; i < currentFrames.length; i++) {
+                        if (!isExporting || encodeError) break;
+                        
+                        if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+
+                        while ((videoEncoder.encodeQueueSize > 5 || exportDecoder.decodeQueueSize > 15) && isExporting) {
+                            await new Promise(r => setTimeout(r, 10));
+                        }
+
+                        if (exportDecoder.state === 'configured') {
+                            exportDecoder.decode(createChunkForFile(currentFrames[i]));
+                        }
+                    }
+
+                    if (exportDecoder.state === 'configured') await exportDecoder.flush();
+                    resolve();
+                })();
+            });
         }
 
-        if (exportDecoder.state === 'configured') await exportDecoder.flush();
         if (videoEncoder.state === 'configured') await videoEncoder.flush();
 
         if (isExporting && !encodeError) {
             writer.finalize();
             const blob = writer.getBlob();
-            DashcamHelpers.downloadBlob(blob, (currentFileName || 'dashcam').replace(/\.mp4$/i, '') + `_overlay.${ext}`);
+            // Use first filename for single file, or create merged name for multiple
+            let outputName;
+            if (fileQueue.length > 1) {
+                // Extract timestamp from first file for output name
+                const firstFileName = fileQueue[0].name;
+                const match = firstFileName.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/);
+                outputName = match ? `dashcam_${match[1]}_merged` : 'dashcam_merged';
+            } else {
+                outputName = (currentFileName || 'dashcam').replace(/\.mp4$/i, '');
+            }
+            DashcamHelpers.downloadBlob(blob, `${outputName}_overlay.${ext}`);
         }
 
     } catch (e) {
@@ -1568,6 +1738,10 @@ async function exportVideo() {
         formatSelect.disabled = false;
         playBtn.disabled = false;
         slider.disabled = false;
+        if (fileQueue.length > 1) {
+            prevFileBtn.disabled = currentFileIndex === 0;
+            nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
+        }
         exportVideoBtn.textContent = 'Export Video';
     }
 }
