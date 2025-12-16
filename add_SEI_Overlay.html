@@ -632,6 +632,156 @@ function drawMetadataOverlay(sei, frameIndex) {
     ctx.restore();
 
     ctx.restore();
+    
+    // Draw accelerometer in lower right corner
+    drawAccelerometer(sei, scale);
+}
+
+// Smoothing for accelerometer display
+let smoothedAccelX = 0;
+let smoothedAccelY = 0;
+const accelSmoothingFactor = 0.3; // Lower = smoother, higher = more responsive
+
+function drawAccelerometer(sei, scale) {
+    let accelX = sei.linearAccelerationMps2X || 0;
+    let accelY = sei.linearAccelerationMps2Y || 0;
+    
+    // Zero out acceleration when vehicle is stationary
+    const speed = sei.vehicleSpeedMps || 0;
+    if (speed < 0.5) {
+        accelX = 0;
+        accelY = 0;
+    }
+    
+    // Apply smoothing
+    smoothedAccelX = smoothedAccelX + (accelX - smoothedAccelX) * accelSmoothingFactor;
+    smoothedAccelY = smoothedAccelY + (accelY - smoothedAccelY) * accelSmoothingFactor;
+    
+    // Widget dimensions
+    const widgetSize = 120 * scale;
+    const padding = 20 * scale;
+    const cornerRadius = 15 * scale;
+    
+    // Position in lower right
+    const wx = canvas.width - widgetSize - padding;
+    const wy = canvas.height - widgetSize - padding;
+    
+    // Colors matching the theme
+    const bgColor = '#f0f0f0a0';
+    const ringColor = '#d1d1d6';
+    const gridColor = '#c7c7cc';
+    const dotColor = '#007aff';
+    const textColor = '#3a3a3c';
+    const secondaryTextColor = '#8e8e93';
+    
+    ctx.save();
+    
+    // Background
+    ctx.fillStyle = bgColor;
+    roundRect(ctx, wx, wy, widgetSize, widgetSize, cornerRadius, true, false);
+    
+    // Title at top
+    ctx.fillStyle = textColor;
+    ctx.font = `600 ${11 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('G-FORCE', wx + widgetSize / 2, wy + 14 * scale);
+    
+    // G-Force circle area - moved down
+    const centerX = wx + widgetSize / 2;
+    const centerY = wy + widgetSize / 2 + 5 * scale;
+    const radius = 40 * scale;
+    
+    // Outer ring
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Inner reference circles (0.5g)
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1 * scale;
+    ctx.setLineDash([3 * scale, 3 * scale]);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Crosshairs
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1 * scale;
+    ctx.beginPath();
+    ctx.moveTo(centerX - radius, centerY);
+    ctx.lineTo(centerX + radius, centerY);
+    ctx.moveTo(centerX, centerY - radius);
+    ctx.lineTo(centerX, centerY + radius);
+    ctx.stroke();
+    
+    // Calculate dot position using smoothed values
+    const maxG = 0.75;
+    const gScale = radius / (maxG * 9.81);
+    
+    const dotX = centerX + (smoothedAccelY * gScale);
+    const dotY = centerY - (smoothedAccelX * gScale);
+    
+    // Clamp to circle
+    const dx = dotX - centerX;
+    const dy = dotY - centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    let finalDotX = dotX;
+    let finalDotY = dotY;
+    if (dist > radius) {
+        finalDotX = centerX + (dx / dist) * radius;
+        finalDotY = centerY + (dy / dist) * radius;
+    }
+    
+    // Draw trail/glow effect
+    const gradient = ctx.createRadialGradient(finalDotX, finalDotY, 0, finalDotX, finalDotY, 12 * scale);
+    gradient.addColorStop(0, 'rgba(0, 122, 255, 0.6)');
+    gradient.addColorStop(1, 'rgba(0, 122, 255, 0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(finalDotX, finalDotY, 12 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw main dot
+    ctx.fillStyle = dotColor;
+    ctx.beginPath();
+    ctx.arc(finalDotX, finalDotY, 6 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Calculate total lateral G-force using smoothed values
+    const totalLateralG = Math.sqrt((smoothedAccelX * smoothedAccelX) + (smoothedAccelY * smoothedAccelY)) / 9.81;
+    
+    // Draw G-force number near the dot
+    if (totalLateralG > 0.02) {
+        const labelOffset = 18 * scale;
+        const labelAngle = Math.atan2(finalDotY - centerY, finalDotX - centerX);
+        const labelX = finalDotX + Math.cos(labelAngle) * labelOffset;
+        const labelY = finalDotY + Math.sin(labelAngle) * labelOffset;
+        
+        const gText = totalLateralG.toFixed(2);
+        ctx.font = `600 ${9 * scale}px sans-serif`;
+        const textWidth = ctx.measureText(gText).width;
+        const pillPadding = 3 * scale;
+        
+        ctx.fillStyle = 'rgba(0, 122, 255, 0.85)';
+        roundRect(ctx, labelX - textWidth/2 - pillPadding, labelY - 6 * scale, textWidth + pillPadding * 2, 12 * scale, 4 * scale, true, false);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(gText, labelX, labelY);
+    }
+    
+    // Draw center reference dot
+    ctx.fillStyle = secondaryTextColor;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 3 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
 }
 
 class WebMWriter {
