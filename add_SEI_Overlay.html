@@ -1,23 +1,48 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tesla Dashcam SEI Explorer + Overlay</title>
-<style>
-    :root {
-        color-scheme: light dark;
-        --bg: #ffffff;
-        --bg-panel: #f5f5f5;
-        --text: #1a1a1a;
-        --text-muted: #666666;
-        --accent: #0080ff;
-        --accent-hover: #0099ff;
-        --border: #888888;
-        --drop-hover-bg: #e8f4ff;
-    }
-    @media (prefers-color-scheme: dark) {
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tesla Dashcam SEI Explorer + Overlay Editor</title>
+    <style>
         :root {
+            color-scheme: light dark;
+            --bg: #ffffff;
+            --bg-panel: #f5f5f5;
+            --text: #1a1a1a;
+            --text-muted: #666666;
+            --accent: #0080ff;
+            --accent-hover: #0099ff;
+            --border: #888888;
+            --drop-hover-bg: #e8f4ff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a1a;
+                --bg-panel: #252525;
+                --text: #e8e8e8;
+                --text-muted: #999999;
+                --accent: rgb(255, 0, 51);
+                --accent-hover: rgb(200, 0, 40);
+                --border: #666666;
+                --drop-hover-bg: #291818;
+            }
+        }
+
+        :root.light {
+            --bg: #ffffff;
+            --bg-panel: #f5f5f5;
+            --text: #1a1a1a;
+            --text-muted: #666666;
+            --accent: #0080ff;
+            --accent-hover: #0099ff;
+            --border: #888888;
+            --drop-hover-bg: #e8f4ff;
+        }
+
+        :root.dark {
             --bg: #1a1a1a;
             --bg-panel: #252525;
             --text: #e8e8e8;
@@ -27,1815 +52,2017 @@
             --border: #666666;
             --drop-hover-bg: #291818;
         }
-    }
-    :root.light {
-        --bg: #ffffff;
-        --bg-panel: #f5f5f5;
-        --text: #1a1a1a;
-        --text-muted: #666666;
-        --accent: #0080ff;
-        --accent-hover: #0099ff;
-        --border: #888888;
-        --drop-hover-bg: #e8f4ff;
-    }
-    :root.dark {
-        --bg: #1a1a1a;
-        --bg-panel: #252525;
-        --text: #e8e8e8;
-        --text-muted: #999999;
-        --accent: rgb(255, 0, 51);
-        --accent-hover: rgb(200, 0, 40);
-        --border: #666666;
-        --drop-hover-bg: #291818;
-    }
-    .theme-toggle {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        width: 40px;
-        height: 40px;
-        border: none;
-        border-radius: 50%;
-        background: var(--bg-panel);
-        color: var(--text);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        border: 1px solid var(--border);
-        transition: background 0.2s, transform 0.2s;
-    }
-    .theme-toggle:hover {
-        background: var(--drop-hover-bg);
-        transform: scale(1.05);
-    }
-    * { box-sizing: border-box; margin: 0; }
-    html, body { height: 100%; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; }
-    a { color: var(--accent); }
 
-    .app { display: flex; flex-direction: column; height: 100%; padding: 1rem; gap: 0.75rem; }
-    .header h1 { font-size: 1.4rem; margin-bottom: 0.125rem; }
-    .header .subtitle { color: var(--text-muted); font-size: 0.85rem; }
-    .main { flex: 1; min-height: 0; display: flex; gap: 1rem; }
-    .video-section { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-    .meta-section { width: 285px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-    .video-wrap { flex: 1; min-height: 0; background: #000; border-radius: 8px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .video-wrap canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .drop-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-panel); border: 2px dashed var(--border); border-radius: 8px; cursor: pointer; z-index: 10; transition: background 0.15s; }
-    .drop-overlay.hidden { display: none; }
-    .drop-overlay:hover { background: var(--drop-hover-bg); border-color: var(--accent); }
-    .scrubber { flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: var(--bg-panel); border-radius: 6px; height: 44px; }
-    .scrubber button { width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--accent); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .scrubber button:hover:not(:disabled) { background: var(--accent-hover); }
-    .scrubber button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .scrubber button svg { width: 14px; height: 14px; fill: currentColor; }
-    .scrubber input[type="range"] { flex: 1; height: 4px; cursor: pointer; }
-    .meta-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-panel); border-radius: 6px; overflow: hidden; padding-bottom: 3px; }
-    .meta-header { flex-shrink: 0; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
-    .meta-header .filename { font-weight: 600; font-size: 0.75rem; word-break: break-all; }
-    .meta-header .framenum { font-size: 0.7rem; color: var(--text-muted); }
-    .meta-list { flex: 1; overflow-y: auto; padding: 0.5rem 0.75rem; display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-    .meta-list .item { display: flex; flex-direction: column; }
-    .meta-list .label { font-size: 0.7rem; color: var(--text-muted); }
-    .meta-list .value { font-weight: 600; color: var(--accent); }
-    .export-group { flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-    .format-select { height: 36px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); padding: 0 0.5rem; font-size: 0.8rem; }
-    .export-btn { height: 44px; padding: 0 0.75rem; border: none; border-radius: 6px; background: var(--accent); color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-bottom: 0.5rem; }
-    .export-btn:hover:not(:disabled) { background: var(--accent-hover); }
-    .export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    @media (max-width: 600px) {
-        .main { flex-direction: column; }
-        .meta-section { width: auto; height: 300px; }
-    }
-</style>
-</head>
-<body>
-<div class="app">
-    <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode">
-        <span id="themeIcon"></span>
-    </button>
-    <header class="header">
-        <h1>Tesla Dashcam SEI Explorer</h1>
-        <p class="subtitle">Overlay processing happens locally.</strong></p>
-        <p class="subtitle" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">
-            💡 <strong>Multi-file mode:</strong> Select or drop multiple MP4 files. They will be sorted by timestamp (format: YYYY-MM-DD_HH-MM-SS) and merged into one video when exported.
-        </p>
-    </header>
-    <main class="main">
-        <section class="video-section">
-            <div class="video-wrap">
-                <div class="drop-overlay" id="dropOverlay">
-                    <input type="file" id="fileInput" accept="video/mp4" multiple>
-                    <p>Drop MP4 here or click to select</p>
-                </div>
-                <canvas id="canvas"></canvas>
-            </div>
-            <div class="scrubber">
-                <button id="prevFileBtn" title="Previous File" disabled style="font-size: 12px; width: auto; padding: 0 8px;">◀ Prev</button>
-                <button id="playBtn" title="Play/Pause" disabled>
-                    <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20" /></svg>
-                </button>
-                <input type="range" id="slider" min="0" max="0" value="0" disabled>
-                <span id="fileCounter" style="font-size: 12px; color: var(--text-muted); min-width: 60px; text-align: center;"></span>
-                <button id="nextFileBtn" title="Next File" disabled style="font-size: 12px; width: auto; padding: 0 8px;">Next ▶</button>
-            </div>
-        </section>
-        <aside class="meta-section">
-            <div class="meta-panel">
-                <div class="meta-header">
-                    <div class="filename" id="fileName">No file loaded</div>
-                    <div class="framenum" id="frameNum">Frame 0/0</div>
-                </div>
-                <div class="meta-list" id="metaList"></div>
-            </div>
-            
-            <div class="export-group">
-                <button class="export-btn" id="exportCsvBtn" disabled>Export CSV</button>
-                <select id="formatSelect" class="format-select" disabled>
-                    <option value="" disabled selected>Loading formats...</option>
-                </select>
-                <button class="export-btn" id="exportVideoBtn" disabled>Export Video</button>
-                <button class="export-btn" id="resetBtn" style="background: #ff3b30; margin-top: 12px;" title="Clear all files and reset">Reset</button>
-            </div>
-        </aside>
-    </main>
-</div>
-
-<script src="vendor/protobuf.min.js"></script>
-<script src="vendor/jszip.min.js"></script>
-<script src="dashcam-mp4.js"></script>
-
-<script>
-// --- THEME TOGGLE ---
-const themeToggle = document.getElementById('themeToggle');
-const themeIcon = document.getElementById('themeIcon');
-
-function getSystemTheme() {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function getCurrentTheme() {
-    const saved = localStorage.getItem('theme');
-    if (saved) return saved;
-    return getSystemTheme();
-}
-
-function applyTheme(theme) {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    themeIcon.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
-}
-
-function toggleTheme() {
-    const current = getCurrentTheme();
-    const next = current === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('theme', next);
-    applyTheme(next);
-}
-
-themeToggle.addEventListener('click', toggleTheme);
-applyTheme(getCurrentTheme());
-
-// Listen for system theme changes
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    if (!localStorage.getItem('theme')) {
-        applyTheme(e.matches ? 'dark' : 'light');
-    }
-});
-
-// --- STATE ---
-let seiType = null, seiFields = null, seiFieldsCsv = null;
-let mp4 = null, frames = null, firstKeyframe = 0;
-let currentFileName = null;
-let playbackDecoder = null; // Reused decoder for playback
-let decoding = false, pendingFrame = null;
-let playing = false, playTimer = null;
-let isExporting = false;
-let fileQueue = [];
-let currentFileIndex = 0;
-
-// --- DOM ---
-const $ = id => document.getElementById(id);
-const dropOverlay = $('dropOverlay'), fileInput = $('fileInput');
-const canvas = $('canvas'), ctx = canvas.getContext('2d');
-const slider = $('slider'), playBtn = $('playBtn');
-const exportCsvBtn = $('exportCsvBtn'), exportVideoBtn = $('exportVideoBtn');
-const formatSelect = $('formatSelect');
-const frameNum = $('frameNum'), fileName = $('fileName'), metaList = $('metaList');
-const prevFileBtn = $('prevFileBtn'), nextFileBtn = $('nextFileBtn'), fileCounter = $('fileCounter');
-const resetBtn = $('resetBtn');
-
-// --- EVENTS ---
-dropOverlay.onclick = () => fileInput.click();
-fileInput.onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
-
-prevFileBtn.onclick = () => {
-    if (fileQueue.length > 1 && currentFileIndex > 0) {
-        currentFileIndex--;
-        loadFile(fileQueue[currentFileIndex]);
-    }
-};
-
-nextFileBtn.onclick = () => {
-    if (fileQueue.length > 1 && currentFileIndex < fileQueue.length - 1) {
-        currentFileIndex++;
-        loadFile(fileQueue[currentFileIndex]);
-    }
-};
-
-resetBtn.onclick = () => {
-    if (confirm('Clear all files and reset?')) {
-        pause();
-        if (playbackDecoder) { 
-            try { playbackDecoder.close(); } catch { } 
-            playbackDecoder = null; 
+        .theme-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: var(--bg-panel);
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            border: 1px solid var(--border);
+            transition: background 0.2s, transform 0.2s;
         }
-        resetUI();
-    }
-};
 
-document.ondragover = e => { e.preventDefault(); dropOverlay.classList.add('dragover'); };
-document.ondragleave = e => { if (!e.relatedTarget) dropOverlay.classList.remove('dragover'); };
-document.ondrop = async e => {
-    e.preventDefault();
-    dropOverlay.classList.remove('dragover');
-    const items = e.dataTransfer?.items;
-    if (items) {
-        const { files, directoryName } = await DashcamHelpers.getFilesFromDataTransfer(items);
-        handleFiles(files, directoryName);
-    } else {
-        handleFiles(e.dataTransfer?.files ?? []);
-    }
-};
+        .theme-toggle:hover {
+            background: var(--drop-hover-bg);
+            transform: scale(1.05);
+        }
 
-slider.oninput = () => { pause(); showFrame(+slider.value); };
-playBtn.onclick = () => playing ? pause() : play();
-document.onkeydown = e => {
-    if (!frames) return;
-    if (e.key === ' ') { e.preventDefault(); playing ? pause() : play(); }
-    else if (e.key === 'ArrowLeft' && +slider.value > 0) {
-        e.preventDefault(); pause();
-        slider.value = +slider.value - 1; showFrame(+slider.value);
-    } else if (e.key === 'ArrowRight' && +slider.value < frames.length - 1) {
-        e.preventDefault(); pause();
-        slider.value = +slider.value + 1; showFrame(+slider.value);
-    }
-};
-exportCsvBtn.onclick = exportCsv;
-exportVideoBtn.onclick = exportVideo;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+        }
 
-// --- INITIALIZATION ---
-const supportedFormats = [
-    { mime: 'avc1.640034', label: 'MP4 (H.264)', ext: 'mp4', container: 'mp4' }
-];
+        html,
+        body {
+            height: 100%;
+        }
 
-function initFormats() {
-    formatSelect.innerHTML = '';
-    let found = false;
-    supportedFormats.forEach(fmt => {
-        if (typeof VideoEncoder !== 'undefined') {
-            VideoEncoder.isConfigSupported({ codec: fmt.mime, width: 640, height: 480 }).then(support => {
-                if (support.supported) {
-                    const opt = document.createElement('option');
-                    opt.value = JSON.stringify({ codec: fmt.mime, ext: fmt.ext, container: fmt.container });
-                    opt.textContent = fmt.label;
-                    formatSelect.appendChild(opt);
-                    found = true;
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 1rem;
+            gap: 0.75rem;
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            margin-bottom: 0.125rem;
+        }
+
+        .header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .main {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .video-section {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .meta-section {
+            width: 285px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .video-wrap {
+            flex: 1;
+            min-height: 0;
+            background: #000;
+            border-radius: 8px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .video-wrap canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .drop-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-panel);
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 10;
+            transition: background 0.15s;
+        }
+
+        .drop-overlay.hidden {
+            display: none;
+        }
+
+        .drop-overlay:hover {
+            background: var(--drop-hover-bg);
+            border-color: var(--accent);
+        }
+
+        .scrubber {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-panel);
+            border-radius: 6px;
+            height: 44px;
+        }
+
+        .scrubber button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scrubber button:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .scrubber button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .scrubber button svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        .scrubber input[type="range"] {
+            flex: 1;
+            height: 4px;
+            cursor: pointer;
+        }
+
+        .meta-panel {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
+            border-radius: 6px;
+            overflow: hidden;
+            padding-bottom: 3px;
+        }
+
+        .meta-header {
+            flex-shrink: 0;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .meta-header .filename {
+            font-weight: 600;
+            font-size: 0.75rem;
+            word-break: break-all;
+        }
+
+        .meta-header .framenum {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .meta-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+            font-size: 0.8rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .meta-list .item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-list .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .meta-list .value {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .export-group {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .format-select {
+            height: 36px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            padding: 0 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .export-btn {
+            height: 44px;
+            padding: 0 0.75rem;
+            border: none;
+            border-radius: 6px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+        }
+
+        .export-btn:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .export-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 600px) {
+            .main {
+                flex-direction: column;
+            }
+
+            .meta-section {
+                width: auto;
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode">
+            <span id="themeIcon"></span>
+        </button>
+        <header class="header">
+            <h1>Tesla Dashcam SEI Explorer</h1>
+            <p class="subtitle">Overlay processing happens locally.</strong></p>
+            <p class="subtitle" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">
+                💡 <strong>Multi-file mode:</strong> Select or drop multiple MP4 files. They will be sorted by timestamp
+                (format: YYYY-MM-DD_HH-MM-SS) and merged into one video when exported.
+            </p>
+        </header>
+        <main class="main">
+            <section class="video-section">
+                <div class="video-wrap">
+                    <div class="drop-overlay" id="dropOverlay">
+                        <input type="file" id="fileInput" accept="video/mp4" multiple>
+                        <p>Drop MP4 here or click to select</p>
+                    </div>
+                    <canvas id="canvas"></canvas>
+                </div>
+                <div class="scrubber">
+                    <button id="prevFileBtn" title="Previous File" disabled
+                        style="font-size: 12px; width: auto; padding: 0 8px;">◀ Prev</button>
+                    <button id="playBtn" title="Play/Pause" disabled>
+                        <svg viewBox="0 0 24 24">
+                            <polygon points="6,4 20,12 6,20" />
+                        </svg>
+                    </button>
+                    <input type="range" id="slider" min="0" max="0" value="0" disabled>
+                    <span id="fileCounter"
+                        style="font-size: 12px; color: var(--text-muted); min-width: 60px; text-align: center;"></span>
+                    <button id="nextFileBtn" title="Next File" disabled
+                        style="font-size: 12px; width: auto; padding: 0 8px;">Next ▶</button>
+                </div>
+            </section>
+            <aside class="meta-section">
+                <div class="meta-panel">
+                    <div class="meta-header">
+                        <div class="filename" id="fileName">No file loaded</div>
+                        <div class="framenum" id="frameNum">Frame 0/0</div>
+                    </div>
+                    <div class="meta-list" id="metaList"></div>
+                </div>
+
+                <div class="export-group">
+                    <button class="export-btn" id="exportCsvBtn" disabled>Export CSV</button>
+                    <select id="formatSelect" class="format-select" disabled>
+                        <option value="" disabled selected>Loading formats...</option>
+                    </select>
+                    <button class="export-btn" id="exportVideoBtn" disabled>Export Video</button>
+                    <button class="export-btn" id="resetBtn" style="background: #ff3b30; margin-top: 12px;"
+                        title="Clear all files and reset">Reset</button>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="vendor/protobuf.min.js"></script>
+    <script src="vendor/jszip.min.js"></script>
+    <script src="dashcam-mp4.js"></script>
+
+    <script>
+        // --- THEME TOGGLE ---
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+
+        function getSystemTheme() {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        function getCurrentTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return getSystemTheme();
+        }
+
+        function applyTheme(theme) {
+            const root = document.documentElement;
+            root.classList.remove('light', 'dark');
+            root.classList.add(theme);
+            themeIcon.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+        }
+
+        function toggleTheme() {
+            const current = getCurrentTheme();
+            const next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', next);
+            applyTheme(next);
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+        applyTheme(getCurrentTheme());
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                applyTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+
+        // --- STATE ---
+        let seiType = null, seiFields = null, seiFieldsCsv = null;
+        let mp4 = null, frames = null, firstKeyframe = 0;
+        let currentFileName = null;
+        let playbackDecoder = null; // Reused decoder for playback
+        let decoding = false, pendingFrame = null;
+        let playing = false, playTimer = null;
+        let isExporting = false;
+        let fileQueue = [];
+        let currentFileIndex = 0;
+
+        // --- DOM ---
+        const $ = id => document.getElementById(id);
+        const dropOverlay = $('dropOverlay'), fileInput = $('fileInput');
+        const canvas = $('canvas'), ctx = canvas.getContext('2d');
+        const slider = $('slider'), playBtn = $('playBtn');
+        const exportCsvBtn = $('exportCsvBtn'), exportVideoBtn = $('exportVideoBtn');
+        const formatSelect = $('formatSelect');
+        const frameNum = $('frameNum'), fileName = $('fileName'), metaList = $('metaList');
+        const prevFileBtn = $('prevFileBtn'), nextFileBtn = $('nextFileBtn'), fileCounter = $('fileCounter');
+        const resetBtn = $('resetBtn');
+
+        // --- EVENTS ---
+        dropOverlay.onclick = () => fileInput.click();
+        fileInput.onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
+
+        prevFileBtn.onclick = () => {
+            if (fileQueue.length > 1 && currentFileIndex > 0) {
+                currentFileIndex--;
+                loadFile(fileQueue[currentFileIndex]);
+            }
+        };
+
+        nextFileBtn.onclick = () => {
+            if (fileQueue.length > 1 && currentFileIndex < fileQueue.length - 1) {
+                currentFileIndex++;
+                loadFile(fileQueue[currentFileIndex]);
+            }
+        };
+
+        resetBtn.onclick = () => {
+            if (confirm('Clear all files and reset?')) {
+                pause();
+                if (playbackDecoder) {
+                    try { playbackDecoder.close(); } catch { }
+                    playbackDecoder = null;
+                }
+                resetUI();
+            }
+        };
+
+        document.ondragover = e => { e.preventDefault(); dropOverlay.classList.add('dragover'); };
+        document.ondragleave = e => { if (!e.relatedTarget) dropOverlay.classList.remove('dragover'); };
+        document.ondrop = async e => {
+            e.preventDefault();
+            dropOverlay.classList.remove('dragover');
+            const items = e.dataTransfer?.items;
+            if (items) {
+                const { files, directoryName } = await DashcamHelpers.getFilesFromDataTransfer(items);
+                handleFiles(files, directoryName);
+            } else {
+                handleFiles(e.dataTransfer?.files ?? []);
+            }
+        };
+
+        slider.oninput = () => { pause(); showFrame(+slider.value); };
+        playBtn.onclick = () => playing ? pause() : play();
+        document.onkeydown = e => {
+            if (!frames) return;
+            if (e.key === ' ') { e.preventDefault(); playing ? pause() : play(); }
+            else if (e.key === 'ArrowLeft' && +slider.value > 0) {
+                e.preventDefault(); pause();
+                slider.value = +slider.value - 1; showFrame(+slider.value);
+            } else if (e.key === 'ArrowRight' && +slider.value < frames.length - 1) {
+                e.preventDefault(); pause();
+                slider.value = +slider.value + 1; showFrame(+slider.value);
+            }
+        };
+        exportCsvBtn.onclick = exportCsv;
+        exportVideoBtn.onclick = exportVideo;
+
+        // --- INITIALIZATION ---
+        const supportedFormats = [
+            { mime: 'avc1.640034', label: 'MP4 (H.264)', ext: 'mp4', container: 'mp4' }
+        ];
+
+        function initFormats() {
+            formatSelect.innerHTML = '';
+            let found = false;
+            supportedFormats.forEach(fmt => {
+                if (typeof VideoEncoder !== 'undefined') {
+                    VideoEncoder.isConfigSupported({ codec: fmt.mime, width: 640, height: 480 }).then(support => {
+                        if (support.supported) {
+                            const opt = document.createElement('option');
+                            opt.value = JSON.stringify({ codec: fmt.mime, ext: fmt.ext, container: fmt.container });
+                            opt.textContent = fmt.label;
+                            formatSelect.appendChild(opt);
+                            found = true;
+                        }
+                    });
                 }
             });
+            setTimeout(() => {
+                if (!found && formatSelect.options.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = JSON.stringify({ codec: 'vp8', ext: 'webm', container: 'webm' });
+                    opt.textContent = "WebM (VP8) - Fallback";
+                    formatSelect.appendChild(opt);
+                }
+            }, 500);
         }
-    });
-    setTimeout(() => {
-        if (!found && formatSelect.options.length === 0) {
-            const opt = document.createElement('option');
-            opt.value = JSON.stringify({ codec: 'vp8', ext: 'webm', container: 'webm' });
-            opt.textContent = "WebM (VP8) - Fallback";
-            formatSelect.appendChild(opt);
-        }
-    }, 500);
-}
-initFormats();
+        initFormats();
 
-DashcamHelpers.initProtobuf().then(({ SeiMetadata, enumFields }) => {
-    seiType = SeiMetadata;
-    seiFields = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useLabels: true });
-    seiFieldsCsv = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useSnakeCase: true });
-}).catch(err => { console.error(err); });
+        DashcamHelpers.initProtobuf().then(({ SeiMetadata, enumFields }) => {
+            seiType = SeiMetadata;
+            seiFields = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useLabels: true });
+            seiFieldsCsv = DashcamHelpers.deriveFieldInfo(SeiMetadata, enumFields, { useSnakeCase: true });
+        }).catch(err => { console.error(err); });
 
-async function handleFiles(fileList, directoryName = null) {
-    if (!seiType) {
-        try {
-            const data = await DashcamHelpers.initProtobuf();
-            seiType = data.SeiMetadata;
-            seiFields = DashcamHelpers.deriveFieldInfo(data.SeiMetadata, data.enumFields, { useLabels: true });
-            seiFieldsCsv = DashcamHelpers.deriveFieldInfo(data.SeiMetadata, data.enumFields, { useSnakeCase: true });
-        } catch (e) {
-            alert("Could not load dependencies.");
-            return;
-        }
-    }
-
-    let files = (Array.isArray(fileList) ? fileList : Array.from(fileList))
-        .filter(f => f.name.toLowerCase().endsWith('.mp4'));
-
-    if (!files.length) { alert('Please choose at least one MP4 file.'); return; }
-    
-    // Sort files by timestamp in filename (format: 2025-12-14_08-45-08)
-    files = files.sort((a, b) => {
-        const extractTimestamp = (name) => {
-            const match = name.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/);
-            if (match) {
-                // Convert to comparable format: 2025-12-14_08-45-08 -> 20251214084508
-                return match[1].replace(/[-_]/g, '');
+        async function handleFiles(fileList, directoryName = null) {
+            if (!seiType) {
+                try {
+                    const data = await DashcamHelpers.initProtobuf();
+                    seiType = data.SeiMetadata;
+                    seiFields = DashcamHelpers.deriveFieldInfo(data.SeiMetadata, data.enumFields, { useLabels: true });
+                    seiFieldsCsv = DashcamHelpers.deriveFieldInfo(data.SeiMetadata, data.enumFields, { useSnakeCase: true });
+                } catch (e) {
+                    alert("Could not load dependencies.");
+                    return;
+                }
             }
-            return name; // Fall back to filename for sorting
-        };
-        return extractTimestamp(a.name).localeCompare(extractTimestamp(b.name));
-    });
-    
-    if (files.length === 1) { 
-        loadFile(files[0]); 
-        return; 
-    }
 
-    // Multiple files - store queue for sequential processing
-    fileQueue = files;
-    currentFileIndex = 0;
-    loadFile(fileQueue[0]);
-}
+            let files = (Array.isArray(fileList) ? fileList : Array.from(fileList))
+                .filter(f => f.name.toLowerCase().endsWith('.mp4'));
 
-async function loadFile(file) {
-    if (!file || !file.name.toLowerCase().endsWith('.mp4')) return;
-    if (!seiType) { alert('Protobuf not initialized'); return; }
+            if (!files.length) { alert('Please choose at least one MP4 file.'); return; }
 
-    pause();
-    if (playbackDecoder) { try { playbackDecoder.close(); } catch { } playbackDecoder = null; }
-    
-    // Reset smoothed accelerometer values when loading new file
-    smoothedAccelX = 0;
-    smoothedAccelY = 0;
-    smoothedTotalG = 0;
+            // Sort files by timestamp in filename (format: 2025-12-14_08-45-08)
+            files = files.sort((a, b) => {
+                const extractTimestamp = (name) => {
+                    const match = name.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/);
+                    if (match) {
+                        // Convert to comparable format: 2025-12-14_08-45-08 -> 20251214084508
+                        return match[1].replace(/[-_]/g, '');
+                    }
+                    return name; // Fall back to filename for sorting
+                };
+                return extractTimestamp(a.name).localeCompare(extractTimestamp(b.name));
+            });
 
-    metaList.innerHTML = '';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (files.length === 1) {
+                loadFile(files[0]);
+                return;
+            }
 
-    try {
-        mp4 = new DashcamMP4(await file.arrayBuffer());
-        frames = mp4.parseFrames(seiType);
+            // Multiple files - store queue for sequential processing
+            fileQueue = files;
+            currentFileIndex = 0;
+            loadFile(fileQueue[0]);
+        }
 
-        firstKeyframe = frames.findIndex(f => f.keyframe);
-        if (firstKeyframe === -1) throw new Error('No keyframes found');
+        async function loadFile(file) {
+            if (!file || !file.name.toLowerCase().endsWith('.mp4')) return;
+            if (!seiType) { alert('Protobuf not initialized'); return; }
 
-        const config = mp4.getConfig();
-        canvas.width = config.width;
-        canvas.height = config.height;
+            pause();
+            if (playbackDecoder) { try { playbackDecoder.close(); } catch { } playbackDecoder = null; }
 
-        slider.max = frames.length - 1;
-        slider.value = firstKeyframe;
-        dropOverlay.classList.add('hidden');
-        currentFileName = file.name;
-        fileName.textContent = file.name;
+            // Reset smoothed accelerometer values when loading new file
+            smoothedAccelX = 0;
+            smoothedAccelY = 0;
+            smoothedTotalG = 0;
 
-        exportCsvBtn.disabled = false;
-        exportVideoBtn.disabled = false;
-        formatSelect.disabled = false;
-        playBtn.disabled = false;
-        slider.disabled = false;
-        
-        // Update file navigation
-        if (fileQueue.length > 1) {
-            fileCounter.textContent = `${currentFileIndex + 1} / ${fileQueue.length}`;
-            prevFileBtn.disabled = currentFileIndex === 0;
-            nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
-        } else {
+            metaList.innerHTML = '';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            try {
+                mp4 = new DashcamMP4(await file.arrayBuffer());
+                frames = mp4.parseFrames(seiType);
+
+                firstKeyframe = frames.findIndex(f => f.keyframe);
+                if (firstKeyframe === -1) throw new Error('No keyframes found');
+
+                const config = mp4.getConfig();
+                canvas.width = config.width;
+                canvas.height = config.height;
+
+                slider.max = frames.length - 1;
+                slider.value = firstKeyframe;
+                dropOverlay.classList.add('hidden');
+                currentFileName = file.name;
+                fileName.textContent = file.name;
+
+                exportCsvBtn.disabled = false;
+                exportVideoBtn.disabled = false;
+                formatSelect.disabled = false;
+                playBtn.disabled = false;
+                slider.disabled = false;
+
+                // Update file navigation
+                if (fileQueue.length > 1) {
+                    fileCounter.textContent = `${currentFileIndex + 1} / ${fileQueue.length}`;
+                    prevFileBtn.disabled = currentFileIndex === 0;
+                    nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
+                } else {
+                    fileCounter.textContent = '';
+                    prevFileBtn.disabled = true;
+                    nextFileBtn.disabled = true;
+                }
+
+                // Initialize persistent decoder for playback
+                initPlaybackDecoder();
+                showFrame(firstKeyframe);
+            } catch (err) {
+                console.error(err);
+                resetUI();
+                alert(err.message);
+            }
+        }
+
+        function resetUI() {
+            mp4 = null; frames = null; firstKeyframe = 0; currentFileName = null;
+            slider.max = 0; slider.value = 0;
+            frameNum.textContent = 'Frame 0/0'; fileName.textContent = 'No file loaded';
+            exportCsvBtn.disabled = true; exportVideoBtn.disabled = true; formatSelect.disabled = true;
+            playBtn.disabled = true; slider.disabled = true;
+            prevFileBtn.disabled = true; nextFileBtn.disabled = true;
             fileCounter.textContent = '';
-            prevFileBtn.disabled = true;
-            nextFileBtn.disabled = true;
+            fileQueue = []; currentFileIndex = 0;
+            dropOverlay.classList.remove('hidden');
         }
 
-        // Initialize persistent decoder for playback
-        initPlaybackDecoder();
-        showFrame(firstKeyframe);
-    } catch (err) {
-        console.error(err);
-        resetUI();
-        alert(err.message);
-    }
-}
+        function play() {
+            if (!frames || playing || isExporting) return;
+            playing = true;
+            playBtn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>';
+            playNext();
+        }
 
-function resetUI() {
-    mp4 = null; frames = null; firstKeyframe = 0; currentFileName = null;
-    slider.max = 0; slider.value = 0;
-    frameNum.textContent = 'Frame 0/0'; fileName.textContent = 'No file loaded';
-    exportCsvBtn.disabled = true; exportVideoBtn.disabled = true; formatSelect.disabled = true;
-    playBtn.disabled = true; slider.disabled = true;
-    prevFileBtn.disabled = true; nextFileBtn.disabled = true;
-    fileCounter.textContent = '';
-    fileQueue = []; currentFileIndex = 0;
-    dropOverlay.classList.remove('hidden');
-}
+        function pause() {
+            if (isExporting) return;
+            playing = false;
+            playBtn.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>';
+            if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+        }
 
-function play() {
-    if (!frames || playing || isExporting) return;
-    playing = true;
-    playBtn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>';
-    playNext();
-}
-
-function pause() {
-    if (isExporting) return;
-    playing = false;
-    playBtn.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>';
-    if (playTimer) { clearTimeout(playTimer); playTimer = null; }
-}
-
-function playNext() {
-    if (!playing) return;
-    let current = +slider.value;
-    let next = current + 1;
-    if (next >= frames.length) next = firstKeyframe;
-    slider.value = next;
-    showFrame(next);
-    // Use actual frame duration from source video for accurate playback
-    const config = mp4.getConfig();
-    const frameDuration = config.durations[current] || config.durations[0] || 33.333;
-    playTimer = setTimeout(playNext, frameDuration);
-}
-
-// --- OPTIMIZED PLAYBACK LOGIC ---
-let lastDecodedIndex = -1;
-let lastKeyframeIndex = -1;
-
-function initPlaybackDecoder() {
-    if (playbackDecoder) playbackDecoder.close();
-    const config = mp4.getConfig();
-    playbackDecoder = new VideoDecoder({
-        output: frame => {
-            if (isExporting) { frame.close(); return; }
-            ctx.drawImage(frame, 0, 0);
-            frame.close();
-            const idx = +slider.value;
-            if (frames[idx] && frames[idx].sei) drawMetadataOverlay(frames[idx].sei, idx);
-            decoding = false;
-            if (pendingFrame !== null) {
-                const p = pendingFrame;
-                pendingFrame = null;
-                showFrame(p);
-            }
-        },
-        error: e => { console.error("Playback decoder error:", e); decoding = false; }
-    });
-    playbackDecoder.configure({
-        codec: config.codec,
-        width: config.width,
-        height: config.height
-    });
-    lastDecodedIndex = -1;
-    lastKeyframeIndex = -1;
-}
-
-async function showFrame(index) {
-    frameNum.textContent = `Frame ${index + 1}/${frames.length}`;
-    if (frames[index].sei) renderSei(frames[index].sei);
-    
-    if (decoding) { pendingFrame = index; return; }
-    decoding = true;
-
-    try {
-        if (!playbackDecoder || playbackDecoder.state === 'closed') initPlaybackDecoder();
-        
-        // Find the keyframe for this index
-        let keyIdx = index;
-        while (keyIdx >= 0 && !frames[keyIdx].keyframe) keyIdx--;
-        if (keyIdx < 0) { decoding = false; return; }
-
-        // Determine if we need to reset (seeking to different keyframe group or backwards)
-        const needsReset = keyIdx !== lastKeyframeIndex || index <= lastDecodedIndex;
-        
-        if (needsReset) {
-            await playbackDecoder.reset();
+        function playNext() {
+            if (!playing) return;
+            let current = +slider.value;
+            let next = current + 1;
+            if (next >= frames.length) next = firstKeyframe;
+            slider.value = next;
+            showFrame(next);
+            // Use actual frame duration from source video for accurate playback
             const config = mp4.getConfig();
+            const frameDuration = config.durations[current] || config.durations[0] || 33.333;
+            playTimer = setTimeout(playNext, frameDuration);
+        }
+
+        // --- OPTIMIZED PLAYBACK LOGIC ---
+        let lastDecodedIndex = -1;
+        let lastKeyframeIndex = -1;
+
+        function initPlaybackDecoder() {
+            if (playbackDecoder) playbackDecoder.close();
+            const config = mp4.getConfig();
+            playbackDecoder = new VideoDecoder({
+                output: frame => {
+                    if (isExporting) { frame.close(); return; }
+                    ctx.drawImage(frame, 0, 0);
+                    frame.close();
+                    const idx = +slider.value;
+                    if (frames[idx] && frames[idx].sei) drawMetadataOverlay(frames[idx].sei, idx);
+                    decoding = false;
+                    if (pendingFrame !== null) {
+                        const p = pendingFrame;
+                        pendingFrame = null;
+                        showFrame(p);
+                    }
+                },
+                error: e => { console.error("Playback decoder error:", e); decoding = false; }
+            });
             playbackDecoder.configure({
                 codec: config.codec,
                 width: config.width,
                 height: config.height
             });
-            lastKeyframeIndex = keyIdx;
-            
-            // Decode from keyframe to target
-            for (let i = keyIdx; i <= index; i++) {
-                playbackDecoder.decode(createChunk(frames[i]));
-            }
-            lastDecodedIndex = index;
-            // Flush only after seek to force output
-            await playbackDecoder.flush();
-        } else {
-            // Sequential playback - decode next frame(s)
-            for (let i = lastDecodedIndex + 1; i <= index; i++) {
-                playbackDecoder.decode(createChunk(frames[i]));
-            }
-            lastDecodedIndex = index;
-            // No flush for sequential - decoder outputs frames as they complete
-        }
-    } catch(e) {
-        console.error("showFrame error:", e);
-        decoding = false;
-    }
-}
-
-function createChunk(frame) {
-    const sc = new Uint8Array([0, 0, 0, 1]);
-    const config = mp4.getConfig();
-    const data = frame.keyframe
-        ? DashcamMP4.concat(sc, frame.sps || config.sps, sc, frame.pps || config.pps, sc, frame.data)
-        : DashcamMP4.concat(sc, frame.data);
-
-    // Calculate cumulative timestamp from actual frame durations (in microseconds)
-    let timestamp = 0;
-    for (let i = 0; i < frame.index; i++) {
-        timestamp += (config.durations[i] || config.durations[0] || 33.333) * 1000;
-    }
-
-    return new EncodedVideoChunk({
-        type: frame.keyframe ? 'key' : 'delta',
-        timestamp: Math.round(timestamp),
-        data
-    });
-}
-
-function renderSei(sei) {
-    metaList.innerHTML = '';
-    if (!seiFields) return;
-    for (const { propName, label, enumMap } of seiFields) {
-        const value = sei?.[propName];
-        const item = document.createElement('div');
-        item.className = 'item';
-        const displayValue = value != null ? DashcamHelpers.formatValue(value, enumMap) : '—';
-        item.innerHTML = `<span class="label">${label}</span><span class="value">${displayValue}</span>`;
-        metaList.appendChild(item);
-    }
-}
-
-function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-  if (fill) ctx.fill();
-  if (stroke) ctx.stroke();
-}
-
-function drawMetadataOverlay(sei, frameIndex) {
-    if (!sei) return;
-    ctx.save();
-    const scale = canvas.width / 1280;
-    const boxWidth = 400 * scale;
-    const boxHeight = 180 * scale;
-    const cornerRadius = 20 * scale;
-    const padding = 20 * scale;
-    const x = (canvas.width - boxWidth) / 2;
-    const y = 40 * scale;
-
-    const bgColor = '#f0f0f0a0'; 
-    const blueColor = '#007aff';
-    const greenColor = '#34c759';
-    const inactivePedalColor = 'rgba(0, 0, 0, 0.25)'; 
-    const activePedalColor = '#ff3b30';
-    const textColor = '#3a3a3c';
-    const secondaryTextColor = '#8e8e93';
-    let wheelColor = '#636366'; 
-    const gearBgColor = '#d1d1d680';
-
-    const speedFontSize = 80 * scale;
-    const unitFontSize = 24 * scale;
-    const stateFontSize = 28 * scale;
-    const gearFontSize = 32 * scale;
-
-    ctx.fillStyle = bgColor;
-    roundRect(ctx, x, y, boxWidth, boxHeight, cornerRadius, true, false);
-
-    const speedVal = sei.vehicleSpeedMps; 
-    const gearVal = sei.gearState; 
-    const autopilotVal = sei.autopilotState; 
-    const leftBlinker = sei.blinkerOnLeft;
-    const rightBlinker = sei.blinkerOnRight;
-    const steeringAngle = sei.steeringWheelAngle || 0;
-    const brakeApplied = sei.brakeApplied;
-    const accelPos = sei.acceleratorPedalPosition || 0;
-
-    let speedMph = '—';
-    if (speedVal != null) {
-        speedMph = Math.round(speedVal * 2.23694).toString();
-    }
-
-    let gearStr = 'P';
-    let gearColor = secondaryTextColor;
-    if (gearVal != null) {
-        const gearFieldDef = seiFields.find(f => f.propName === 'gearState');
-        if (gearFieldDef && gearFieldDef.enumMap) {
-            const valStr = DashcamHelpers.formatValue(gearVal, gearFieldDef.enumMap);
-            if (valStr === 'GEAR_DRIVE') { gearStr = 'D'; gearColor = blueColor; }
-            else if (valStr === 'GEAR_REVERSE') { gearStr = 'R'; }
-            else if (valStr === 'GEAR_NEUTRAL') { gearStr = 'N'; }
-        }
-    }
-
-    let stateStr = '';
-    if (autopilotVal != null) {
-        const apFieldDef = seiFields.find(f => f.propName === 'autopilotState');
-        if (apFieldDef && apFieldDef.enumMap) {
-            const valStr = DashcamHelpers.formatValue(autopilotVal, apFieldDef.enumMap);
-            if (valStr === 'SELF_DRIVING') {
-                stateStr = 'Self-Driving';
-                wheelColor = blueColor;
-            } else if (valStr === 'AUTOSTEER') {
-                stateStr = 'Autosteer';
-                wheelColor = blueColor;
-            } else if (valStr === 'TACC') {
-                stateStr = 'Traffic-Aware Cruise Control';
-            }
-        }
-    }
-
-    const showBlink = (frameIndex % 30) < 15;
-
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const centerX = x + boxWidth / 2;
-    const centerY = y + boxHeight / 2;
-
-    ctx.fillStyle = textColor;
-    ctx.font = `600 ${speedFontSize}px sans-serif`;
-    ctx.fillText(speedMph, centerX, centerY - 15 * scale);
-    
-    ctx.fillStyle = secondaryTextColor;
-    ctx.font = `500 ${unitFontSize}px sans-serif`;
-    ctx.fillText('MPH', centerX, centerY + 30 * scale);
-
-    if (stateStr) {
-        ctx.fillStyle = blueColor;
-        ctx.font = `500 ${stateFontSize}px sans-serif`;
-        ctx.fillText(stateStr, centerX, y + boxHeight - 25 * scale);
-    }
-
-    const gearX = x + padding + gearFontSize / 2;
-    const gearY = y + padding + gearFontSize / 2;
-
-    ctx.save();
-    ctx.fillStyle = gearBgColor;
-    ctx.beginPath();
-    ctx.arc(gearX, gearY, gearFontSize * 0.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.fillStyle = gearColor;
-    ctx.font = `600 ${gearFontSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(gearStr, gearX, gearY);
-
-    const iconSize = 36 * scale; 
-    const iconX = x + boxWidth - padding - iconSize;
-    const iconY = y + padding;
-    
-    ctx.save();
-    ctx.translate(iconX + iconSize / 2, iconY + iconSize / 2);
-    ctx.rotate(steeringAngle * Math.PI / 180); 
-    ctx.translate(-iconSize / 2, -iconSize / 2);
-    ctx.scale(iconSize / 100, iconSize / 100); 
-    
-    ctx.fillStyle = wheelColor;
-    
-    const wheelPath = new Path2D();
-    wheelPath.arc(50, 50, 45, 0, Math.PI * 2);
-    wheelPath.arc(50, 50, 30, 0, Math.PI * 2, true);
-    wheelPath.moveTo(62, 50);
-    wheelPath.arc(50, 50, 12, 0, Math.PI * 2);
-    wheelPath.rect(8, 42.5, 30, 15); 
-    wheelPath.rect(62, 42.5, 30, 15);
-    wheelPath.rect(42.5, 62, 15, 30);
-    
-    ctx.fill(wheelPath);
-    ctx.restore();
-
-    ctx.fillStyle = greenColor;
-    const arrowY = centerY - 15 * scale;
-    const arrowSize = 24 * scale; 
-    
-    const leftArrowX = x + boxWidth * 0.25;
-    const rightArrowX = x + boxWidth * 0.75;
-
-    const indicatorPath = new Path2D("M50 0 L90 50 L70 50 L70 100 L30 100 L30 50 L10 50 Z");
-
-    if (leftBlinker && showBlink) {
-        ctx.save();
-        ctx.translate(leftArrowX, arrowY);
-        ctx.rotate(-Math.PI / 2); 
-        ctx.translate(-arrowSize / 2, -arrowSize / 2);
-        ctx.scale(arrowSize / 100, arrowSize / 100); 
-        ctx.fill(indicatorPath);
-        ctx.restore();
-    }
-    if (rightBlinker && showBlink) {
-        ctx.save();
-        ctx.translate(rightArrowX, arrowY);
-        ctx.rotate(Math.PI / 2); 
-        ctx.translate(-arrowSize / 2, -arrowSize / 2);
-        ctx.scale(arrowSize / 100, arrowSize / 100); 
-        ctx.fill(indicatorPath);
-        ctx.restore();
-    }
-
-    const pedalIconSize = 24 * scale;
-    const pedalY = y + boxHeight - padding - pedalIconSize;
-
-    ctx.save();
-    ctx.translate(x + padding, pedalY);
-    ctx.scale(pedalIconSize / 24, pedalIconSize / 24);
-    ctx.fillStyle = brakeApplied ? activePedalColor : inactivePedalColor;
-    const brakePath = new Path2D("M4 2h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z");
-    ctx.fill(brakePath);
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(x + boxWidth - padding - pedalIconSize, pedalY);
-    ctx.scale(pedalIconSize / 24, pedalIconSize / 24);
-    ctx.fillStyle = accelPos > 0 ? activePedalColor : inactivePedalColor;
-    const accelPath = new Path2D("M7 2h10c1.1 0 2 .9 2 2v16c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z");
-    ctx.fill(accelPath);
-    ctx.restore();
-
-    ctx.restore();
-    
-    // Draw accelerometer in lower right corner
-    drawAccelerometer(sei, scale);
-}
-
-// Smoothing for accelerometer display
-let smoothedAccelX = 0;
-let smoothedAccelY = 0;
-let smoothedTotalG = 0;
-const accelSmoothingFactor = 0.15; // Lower = smoother, higher = more responsive
-
-function drawAccelerometer(sei, scale) {
-    let accelX = sei.linearAccelerationMps2X || 0;
-    let accelY = sei.linearAccelerationMps2Y || 0;
-    
-    // Zero out acceleration when vehicle is stationary
-    const speed = sei.vehicleSpeedMps || 0;
-    if (speed < 0.5) {
-        accelX = 0;
-        accelY = 0;
-    }
-    
-    // Apply smoothing
-    smoothedAccelX = smoothedAccelX + (accelX - smoothedAccelX) * accelSmoothingFactor;
-    smoothedAccelY = smoothedAccelY + (accelY - smoothedAccelY) * accelSmoothingFactor;
-    
-    // Widget dimensions - 50% bigger
-    const widgetSize = 180 * scale;
-    const padding = 20 * scale;
-    const cornerRadius = 22 * scale;
-    
-    // Position in lower right
-    const wx = canvas.width - widgetSize - padding;
-    const wy = canvas.height - widgetSize - padding;
-    
-    // Colors matching the theme
-    const bgColor = '#f0f0f0a0';
-    const ringColor = '#d1d1d6';
-    const gridColor = '#c7c7cc';
-    const dotColor = '#007aff';
-    const textColor = '#3a3a3c';
-    const secondaryTextColor = '#8e8e93';
-    
-    ctx.save();
-    
-    // Background
-    ctx.fillStyle = bgColor;
-    roundRect(ctx, wx, wy, widgetSize, widgetSize, cornerRadius, true, false);
-    
-    // Title at top
-    ctx.fillStyle = textColor;
-    ctx.font = `600 ${16 * scale}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('G-FORCE', wx + widgetSize / 2, wy + 20 * scale);
-    
-    // G-Force circle area - moved down
-    const centerX = wx + widgetSize / 2;
-    const centerY = wy + widgetSize / 2 + 8 * scale;
-    const radius = 60 * scale;
-    
-    // Outer ring
-    ctx.strokeStyle = ringColor;
-    ctx.lineWidth = 2.5 * scale;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // Inner reference circles (0.5g)
-    ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 1.5 * scale;
-    ctx.setLineDash([4 * scale, 4 * scale]);
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // Crosshairs
-    ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 1.5 * scale;
-    ctx.beginPath();
-    ctx.moveTo(centerX - radius, centerY);
-    ctx.lineTo(centerX + radius, centerY);
-    ctx.moveTo(centerX, centerY - radius);
-    ctx.lineTo(centerX, centerY + radius);
-    ctx.stroke();
-    
-    // Calculate dot position using smoothed values
-    const maxG = 0.75;
-    const gScale = radius / (maxG * 9.81);
-    
-    const dotX = centerX + (smoothedAccelY * gScale);
-    const dotY = centerY - (smoothedAccelX * gScale);
-    
-    // Clamp to circle
-    const dx = dotX - centerX;
-    const dy = dotY - centerY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    let finalDotX = dotX;
-    let finalDotY = dotY;
-    if (dist > radius) {
-        finalDotX = centerX + (dx / dist) * radius;
-        finalDotY = centerY + (dy / dist) * radius;
-    }
-    
-    // Draw trail/glow effect
-    const gradient = ctx.createRadialGradient(finalDotX, finalDotY, 0, finalDotX, finalDotY, 18 * scale);
-    gradient.addColorStop(0, 'rgba(0, 122, 255, 0.6)');
-    gradient.addColorStop(1, 'rgba(0, 122, 255, 0)');
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(finalDotX, finalDotY, 18 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw main dot
-    ctx.fillStyle = dotColor;
-    ctx.beginPath();
-    ctx.arc(finalDotX, finalDotY, 9 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Calculate total lateral G-force using smoothed values
-    const rawTotalG = Math.sqrt((smoothedAccelX * smoothedAccelX) + (smoothedAccelY * smoothedAccelY)) / 9.81;
-    smoothedTotalG = smoothedTotalG + (rawTotalG - smoothedTotalG) * accelSmoothingFactor;
-    
-    // Draw G-force number near the dot
-    if (smoothedTotalG > 0.02) {
-        const labelOffset = 24 * scale;
-        const labelAngle = Math.atan2(finalDotY - centerY, finalDotX - centerX);
-        const labelX = finalDotX + Math.cos(labelAngle) * labelOffset;
-        const labelY = finalDotY + Math.sin(labelAngle) * labelOffset;
-        
-        const gText = smoothedTotalG.toFixed(2);
-        ctx.font = `600 ${14 * scale}px sans-serif`;
-        const textWidth = ctx.measureText(gText).width;
-        const pillPadding = 5 * scale;
-        
-        ctx.fillStyle = 'rgba(0, 122, 255, 0.85)';
-        roundRect(ctx, labelX - textWidth/2 - pillPadding, labelY - 9 * scale, textWidth + pillPadding * 2, 18 * scale, 6 * scale, true, false);
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(gText, labelX, labelY);
-    }
-    
-    // Draw center reference dot
-    ctx.fillStyle = secondaryTextColor;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 4 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.restore();
-}
-
-class WebMWriter {
-    constructor(codec, framerate = 30) {
-        this.blobs = [];
-        this.clusterTimecode = 0;
-        this.clusterStartOffset = -1;
-        this.headerWritten = false;
-        this.currentCluster = [];
-        this.clusterDuration = 32767; // Max duration for 16-bit signed timecode
-        this.codec = codec || 'vp8';
-        this.framerate = framerate;
-        this.totalSize = 0;
-        this.segmentContentStart = 0;
-        this.lastTimecode = 0;
-        this.keyframeTimes = []; // For Cues
-        this.keyframePositions = []; // Byte positions for Cues
-        this.clusterPositions = []; // Track cluster start positions
-        this.trackNumber = 1;
-        this.width = 0;
-        this.height = 0;
-    }
-
-    // EBML Variable-size Integer encoding
-    getVint(value) {
-        if (value < 0x7F) {
-            return new Uint8Array([value | 0x80]);
-        } else if (value < 0x3FFF) {
-            return new Uint8Array([0x40 | (value >> 8), value & 0xFF]);
-        } else if (value < 0x1FFFFF) {
-            return new Uint8Array([0x20 | (value >> 16), (value >> 8) & 0xFF, value & 0xFF]);
-        } else if (value < 0x0FFFFFFF) {
-            return new Uint8Array([0x10 | (value >> 24), (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF]);
-        } else {
-            // Use 8-byte VINT for larger values
-            const bytes = new Uint8Array(8);
-            bytes[0] = 0x01;
-            let v = value;
-            for (let i = 7; i >= 1; i--) {
-                bytes[i] = v & 0xFF;
-                v = Math.floor(v / 256);
-            }
-            return bytes;
-        }
-    }
-
-    // Get EBML Element ID bytes
-    getIdBytes(id) {
-        if (id <= 0x7F) return new Uint8Array([id]);
-        if (id <= 0x3FFF) return new Uint8Array([(id >> 8) & 0xFF, id & 0xFF]);
-        if (id <= 0x1FFFFF) return new Uint8Array([(id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF]);
-        return new Uint8Array([(id >> 24) & 0xFF, (id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF]);
-    }
-
-    // Create an unsigned integer element with minimum bytes
-    createUintElement(id, value) {
-        const idBytes = this.getIdBytes(id);
-        
-        // Determine minimum bytes needed
-        let size = 1;
-        let v = value;
-        while (v >= 256) { v = Math.floor(v / 256); size++; }
-        
-        const dataBytes = new Uint8Array(size);
-        v = value;
-        for (let i = size - 1; i >= 0; i--) {
-            dataBytes[i] = v & 0xFF;
-            v = Math.floor(v / 256);
-        }
-        
-        const sizeBytes = this.getVint(size);
-        const total = new Uint8Array(idBytes.length + sizeBytes.length + size);
-        total.set(idBytes, 0);
-        total.set(sizeBytes, idBytes.length);
-        total.set(dataBytes, idBytes.length + sizeBytes.length);
-        return total;
-    }
-
-    // Create a float element (always 4 bytes for 32-bit or 8 bytes for 64-bit)
-    createFloatElement(id, value, use64bit = false) {
-        const idBytes = this.getIdBytes(id);
-        const size = use64bit ? 8 : 4;
-        const buffer = new ArrayBuffer(size);
-        const view = new DataView(buffer);
-        if (use64bit) {
-            view.setFloat64(0, value, false); // Big-endian
-        } else {
-            view.setFloat32(0, value, false); // Big-endian
-        }
-        const dataBytes = new Uint8Array(buffer);
-        const sizeBytes = this.getVint(size);
-        
-        const total = new Uint8Array(idBytes.length + sizeBytes.length + size);
-        total.set(idBytes, 0);
-        total.set(sizeBytes, idBytes.length);
-        total.set(dataBytes, idBytes.length + sizeBytes.length);
-        return total;
-    }
-
-    // Create a string element
-    createStringElement(id, str) {
-        const idBytes = this.getIdBytes(id);
-        const dataBytes = new TextEncoder().encode(str);
-        const sizeBytes = this.getVint(dataBytes.length);
-        
-        const total = new Uint8Array(idBytes.length + sizeBytes.length + dataBytes.length);
-        total.set(idBytes, 0);
-        total.set(sizeBytes, idBytes.length);
-        total.set(dataBytes, idBytes.length + sizeBytes.length);
-        return total;
-    }
-
-    // Create a binary element
-    createBinaryElement(id, data) {
-        const idBytes = this.getIdBytes(id);
-        const dataBytes = data instanceof Uint8Array ? data : new Uint8Array(data);
-        const sizeBytes = this.getVint(dataBytes.length);
-        
-        const total = new Uint8Array(idBytes.length + sizeBytes.length + dataBytes.length);
-        total.set(idBytes, 0);
-        total.set(sizeBytes, idBytes.length);
-        total.set(dataBytes, idBytes.length + sizeBytes.length);
-        return total;
-    }
-
-    // Create a master element containing children
-    createMaster(id, children) {
-        let size = 0;
-        children.forEach(c => size += c.length);
-        
-        const idBytes = this.getIdBytes(id);
-        const sizeBytes = this.getVint(size);
-        
-        const total = new Uint8Array(idBytes.length + sizeBytes.length + size);
-        let offset = 0;
-        
-        total.set(idBytes, offset); offset += idBytes.length;
-        total.set(sizeBytes, offset); offset += sizeBytes.length;
-        
-        children.forEach(c => {
-            total.set(c, offset);
-            offset += c.length;
-        });
-        return total;
-    }
-
-    addBlob(blob) {
-        this.blobs.push(blob);
-        this.totalSize += blob.length;
-    }
-
-    writeHeader(width, height, codecPrivate) {
-        this.width = width;
-        this.height = height;
-        const codecId = this.codec.includes('vp9') ? "V_VP9" : "V_VP8";
-
-        // EBML Header
-        const ebmlHeader = this.createMaster(0x1A45DFA3, [
-            this.createUintElement(0x4286, 1),      // EBMLVersion
-            this.createUintElement(0x42F7, 1),      // EBMLReadVersion
-            this.createUintElement(0x42F2, 4),      // EBMLMaxIDLength
-            this.createUintElement(0x42F3, 8),      // EBMLMaxSizeLength
-            this.createStringElement(0x4282, "webm"), // DocType
-            this.createUintElement(0x4287, 4),      // DocTypeVersion
-            this.createUintElement(0x4285, 2)       // DocTypeReadVersion
-        ]);
-        this.addBlob(ebmlHeader);
-
-        // Segment with unknown size (will be patched later)
-        // Using 0x01FFFFFFFFFFFFFF for unknown size
-        this.addBlob(new Uint8Array([0x18, 0x53, 0x80, 0x67, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]));
-        this.segmentContentStart = this.totalSize;
-
-        // Segment Info
-        const segmentUID = new Uint8Array(16);
-        crypto.getRandomValues(segmentUID);
-        
-        const defaultDurationNs = Math.round(1000000000 / this.framerate);
-        
-        const info = this.createMaster(0x1549A966, [
-            this.createBinaryElement(0x73A4, segmentUID),           // SegmentUID
-            this.createStringElement(0x4D80, "Tesla Dashcam Overlay"), // MuxingApp
-            this.createStringElement(0x5741, "Tesla Dashcam Overlay"), // WritingApp
-            this.createUintElement(0x2AD7B1, 1000000),              // TimecodeScale (1ms)
-            this.createFloatElement(0x4489, 0, true)                // Duration placeholder (64-bit float)
-        ]);
-        this.addBlob(info);
-
-        // Tracks
-        const videoSettings = [
-            this.createUintElement(0x9A, 0),        // FlagInterlaced (0 = not interlaced)
-            this.createUintElement(0xB0, width),    // PixelWidth
-            this.createUintElement(0xBA, height),   // PixelHeight
-            this.createUintElement(0x54B0, width),  // DisplayWidth
-            this.createUintElement(0x54BA, height)  // DisplayHeight
-        ];
-
-        const trackEntryChildren = [
-            this.createUintElement(0xD7, this.trackNumber),  // TrackNumber
-            this.createUintElement(0x73C5, this.trackNumber), // TrackUID (use same as TrackNumber for simplicity)
-            this.createUintElement(0x9C, 0),                 // FlagLacing (0 = no lacing)
-            this.createStringElement(0x22B59C, "und"),       // Language
-            this.createStringElement(0x86, codecId),         // CodecID
-            this.createUintElement(0x83, 1),                 // TrackType (1 = video)
-            this.createUintElement(0x23E383, defaultDurationNs), // DefaultDuration
-            this.createMaster(0xE0, videoSettings)           // Video settings
-        ];
-
-        if (codecPrivate && codecPrivate.byteLength > 0) {
-            trackEntryChildren.push(this.createBinaryElement(0x63A2, new Uint8Array(codecPrivate)));
+            lastDecodedIndex = -1;
+            lastKeyframeIndex = -1;
         }
 
-        const tracks = this.createMaster(0x1654AE6B, [
-            this.createMaster(0xAE, trackEntryChildren)
-        ]);
-        this.addBlob(tracks);
-        
-        this.headerWritten = true;
-    }
+        async function showFrame(index) {
+            frameNum.textContent = `Frame ${index + 1}/${frames.length}`;
+            if (frames[index].sei) renderSei(frames[index].sei);
 
-    flushCluster() {
-        if (this.currentCluster.length === 0) return;
-        
-        const clusterStartPos = this.totalSize - this.segmentContentStart;
-        this.clusterPositions.push({ timecode: this.clusterTimecode, position: clusterStartPos });
-        
-        const timecodeElt = this.createUintElement(0xE7, Math.round(this.clusterTimecode));
-        const children = [timecodeElt, ...this.currentCluster];
-        const cluster = this.createMaster(0x1F43B675, children);
-        this.addBlob(cluster);
-        this.currentCluster = [];
-    }
+            if (decoding) { pendingFrame = index; return; }
+            decoding = true;
 
-    addFrame(chunk, meta, width, height) {
-        if (!this.headerWritten) {
-            let codecPrivate = null;
-            if (meta && meta.decoderConfig && meta.decoderConfig.description) {
-                codecPrivate = meta.decoderConfig.description;
-            }
-            this.writeHeader(width, height, codecPrivate);
-        }
+            try {
+                if (!playbackDecoder || playbackDecoder.state === 'closed') initPlaybackDecoder();
 
-        const timecode = chunk.timestamp / 1000; // Convert microseconds to milliseconds
+                // Find the keyframe for this index
+                let keyIdx = index;
+                while (keyIdx >= 0 && !frames[keyIdx].keyframe) keyIdx--;
+                if (keyIdx < 0) { decoding = false; return; }
 
-        // Start new cluster if needed
-        if (this.clusterStartOffset === -1) {
-            this.clusterStartOffset = 0;
-            this.clusterTimecode = timecode;
-        } else if (timecode - this.clusterTimecode >= this.clusterDuration || 
-                   (chunk.type === 'key' && this.currentCluster.length > 0)) {
-            // Start new cluster on keyframes for better seeking
-            this.flushCluster();
-            this.clusterTimecode = timecode;
-        }
+                // Determine if we need to reset (seeking to different keyframe group or backwards)
+                const needsReset = keyIdx !== lastKeyframeIndex || index <= lastDecodedIndex;
 
-        const relTime = Math.round(timecode - this.clusterTimecode);
-        if (relTime < 0 || relTime > 32767) return;
-
-        // Track keyframes for Cues
-        if (chunk.type === 'key') {
-            this.keyframeTimes.push(timecode);
-            // Position will be calculated relative to segment start
-        }
-
-        // Create SimpleBlock
-        const flags = (chunk.type === 'key' ? 0x80 : 0x00); // Keyframe flag
-        const trackVint = new Uint8Array([0x81]); // Track 1 as VINT
-        
-        const header = new Uint8Array(4);
-        header[0] = trackVint[0];
-        header[1] = (relTime >> 8) & 0xFF;
-        header[2] = relTime & 0xFF;
-        header[3] = flags;
-
-        const data = new Uint8Array(chunk.byteLength);
-        chunk.copyTo(data);
-
-        // SimpleBlock element (0xA3)
-        const blockData = new Uint8Array(header.length + data.length);
-        blockData.set(header, 0);
-        blockData.set(data, header.length);
-        
-        const simpleBlock = this.createBinaryElement(0xA3, blockData);
-        this.currentCluster.push(simpleBlock);
-        
-        this.lastTimecode = timecode;
-    }
-
-    finalize() {
-        this.flushCluster();
-        
-        // Create Cues for keyframe seeking
-        const cuePoints = [];
-        for (let i = 0; i < this.keyframeTimes.length && i < this.clusterPositions.length; i++) {
-            const cueTime = Math.round(this.keyframeTimes[i]);
-            // Find the cluster that contains this keyframe
-            let clusterPos = this.clusterPositions[0].position;
-            for (const cp of this.clusterPositions) {
-                if (cp.timecode <= this.keyframeTimes[i]) {
-                    clusterPos = cp.position;
-                }
-            }
-            
-            const cueTrackPos = this.createMaster(0xB7, [
-                this.createUintElement(0xF7, this.trackNumber),  // CueTrack
-                this.createUintElement(0xF1, clusterPos)         // CueClusterPosition
-            ]);
-            
-            const cuePoint = this.createMaster(0xBB, [
-                this.createUintElement(0xB3, cueTime),  // CueTime
-                cueTrackPos
-            ]);
-            cuePoints.push(cuePoint);
-        }
-        
-        if (cuePoints.length > 0) {
-            const cues = this.createMaster(0x1C53BB6B, cuePoints);
-            this.addBlob(cues);
-        }
-        
-        // Patch Segment Size
-        const segmentSize = this.totalSize - this.segmentContentStart;
-        const sizeBytes = new Uint8Array(8);
-        sizeBytes[0] = 0x01; // 8-byte VINT marker
-        let val = segmentSize;
-        for (let i = 7; i >= 1; i--) {
-            sizeBytes[i] = val & 0xFF;
-            val = Math.floor(val / 256);
-        }
-        this.blobs[1].set(sizeBytes, 4);
-
-        // Patch Duration in Info element (blob index 2)
-        const frameDurationMs = 1000 / this.framerate;
-        const durationVal = (this.lastTimecode || 0) + frameDurationMs;
-        const dv = new DataView(new ArrayBuffer(8));
-        dv.setFloat64(0, durationVal, false); // Big-endian
-        
-        // Find Duration element in Info blob and patch it
-        // Duration element starts after SegmentUID(16) + MuxingApp + WritingApp + TimecodeScale
-        // The structure is: [ID][Size][Data] for each element
-        const infoBlob = this.blobs[2];
-        // Duration is the last element, 8 bytes at the end
-        infoBlob.set(new Uint8Array(dv.buffer), infoBlob.length - 8);
-    }
-
-    getBlob() {
-        return new Blob(this.blobs, { type: 'video/webm' });
-    }
-}
-
-// -------------------------------------------------------------
-// MP4 WRITER (for DaVinci Resolve compatibility)
-// Simplified MP4 muxer for H.264 video
-// -------------------------------------------------------------
-
-class MP4Writer {
-    constructor(codec, framerate = 30) {
-        this.codec = codec;
-        this.framerate = framerate;
-        this.width = 0;
-        this.height = 0;
-        this.timescale = 90000;
-        this.samples = [];
-        this.avcC = null;
-        this.totalDuration = 0;
-    }
-
-    addFrame(chunk, meta, width, height) {
-        if (this.width === 0) {
-            this.width = width;
-            this.height = height;
-            
-            // Store AVCC configuration from first keyframe
-            if (meta && meta.decoderConfig && meta.decoderConfig.description) {
-                this.avcC = new Uint8Array(meta.decoderConfig.description);
-            }
-        }
-
-        const data = new Uint8Array(chunk.byteLength);
-        chunk.copyTo(data);
-        
-        const pts = Math.round((chunk.timestamp / 1000000) * this.timescale);
-        const duration = Math.round((1 / this.framerate) * this.timescale);
-        
-        this.samples.push({
-            data: data,
-            pts: pts,
-            duration: duration,
-            isKeyframe: chunk.type === 'key'
-        });
-        
-        this.totalDuration = pts + duration;
-    }
-
-    u32(v) { return [(v >> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff]; }
-    u16(v) { return [(v >> 8) & 0xff, v & 0xff]; }
-    
-    finalize() {
-        // Everything is done in getBlob() for this implementation
-    }
-    
-    box(type, ...payload) {
-        const content = payload.flat(Infinity);
-        const size = 8 + content.length;
-        return [
-            ...this.u32(size),
-            type.charCodeAt(0), type.charCodeAt(1), type.charCodeAt(2), type.charCodeAt(3),
-            ...content
-        ];
-    }
-    
-    fullbox(type, version, flags, ...payload) {
-        const content = payload.flat(Infinity);
-        const size = 12 + content.length;
-        return [
-            ...this.u32(size),
-            type.charCodeAt(0), type.charCodeAt(1), type.charCodeAt(2), type.charCodeAt(3),
-            version,
-            (flags >> 16) & 0xff, (flags >> 8) & 0xff, flags & 0xff,
-            ...content
-        ];
-    }
-
-    getBlob() {
-        const ftyp = this.box('ftyp',
-            0x69, 0x73, 0x6f, 0x6d,  // major_brand: isom
-            ...this.u32(512),        // minor_version
-            0x69, 0x73, 0x6f, 0x6d,  // isom
-            0x69, 0x73, 0x6f, 0x32,  // iso2
-            0x61, 0x76, 0x63, 0x31,  // avc1
-            0x6d, 0x70, 0x34, 0x31   // mp41
-        );
-
-        // Build sample data and calculate sizes
-        let mdatSize = 8;
-        const sampleSizes = [];
-        const sampleFlags = [];
-        const chunkOffsets = [];
-        
-        for (const sample of this.samples) {
-            sampleSizes.push(sample.data.length);
-            sampleFlags.push(sample.isKeyframe);
-            mdatSize += sample.data.length;
-        }
-
-        // AVCC - use stored or create default
-        const avcC = this.avcC ? [...this.avcC] : [
-            1, 66, 0, 31, 255, 225,  // config, profile, compat, level, lengthSize, numSPS
-            0, 10,  // SPS length
-            0x67, 0x42, 0x00, 0x1f, 0x96, 0x54, 0x05, 0x01, 0xed, 0x80,  // SPS
-            1, 0, 4,  // numPPS, PPS length
-            0x68, 0xce, 0x06, 0xe2   // PPS
-        ];
-
-        // stsd (Sample Description)
-        const avc1 = this.box('avc1',
-            ...Array(6).fill(0),     // reserved
-            ...this.u16(1),          // data_reference_index
-            ...Array(16).fill(0),    // pre_defined, reserved
-            ...this.u16(this.width),
-            ...this.u16(this.height),
-            0x00, 0x48, 0x00, 0x00,  // horiz resolution 72dpi
-            0x00, 0x48, 0x00, 0x00,  // vert resolution 72dpi
-            ...this.u32(0),          // reserved
-            ...this.u16(1),          // frame_count
-            ...Array(32).fill(0),    // compressorname
-            ...this.u16(24),         // depth
-            0xff, 0xff,              // pre_defined
-            this.box('avcC', ...avcC)
-        );
-        
-        const stsd = this.fullbox('stsd', 0, 0,
-            ...this.u32(1),  // entry_count
-            ...avc1
-        );
-
-        // stts (Time to Sample) - constant duration
-        const sampleDuration = Math.round(this.timescale / this.framerate);
-        const stts = this.fullbox('stts', 0, 0,
-            ...this.u32(1),                    // entry_count
-            ...this.u32(this.samples.length),  // sample_count
-            ...this.u32(sampleDuration)        // sample_delta
-        );
-
-        // stss (Sync Sample) - keyframes
-        const keyframes = this.samples
-            .map((s, i) => s.isKeyframe ? i + 1 : null)
-            .filter(x => x !== null);
-        const stss = this.fullbox('stss', 0, 0,
-            ...this.u32(keyframes.length),
-            ...keyframes.flatMap(k => this.u32(k))
-        );
-
-        // stsc (Sample to Chunk) - all samples in one chunk
-        const stsc = this.fullbox('stsc', 0, 0,
-            ...this.u32(1),                    // entry_count
-            ...this.u32(1),                    // first_chunk
-            ...this.u32(this.samples.length),  // samples_per_chunk
-            ...this.u32(1)                     // sample_description_index
-        );
-
-        // stsz (Sample Size)
-        const stsz = this.fullbox('stsz', 0, 0,
-            ...this.u32(0),                    // sample_size (0 = variable)
-            ...this.u32(this.samples.length),  // sample_count
-            ...sampleSizes.flatMap(s => this.u32(s))
-        );
-
-        // Build moov first to calculate mdat offset
-        const stbl_content = [...stsd, ...stts, ...stss, ...stsc, ...stsz];
-        
-        // Placeholder stco - we'll calculate real offset after building moov
-        const stco_placeholder = this.fullbox('stco', 0, 0,
-            ...this.u32(1),  // entry_count
-            ...this.u32(0)   // placeholder offset
-        );
-        
-        const stbl = this.box('stbl', ...stbl_content, ...stco_placeholder);
-        
-        const vmhd = this.fullbox('vmhd', 0, 1, ...Array(8).fill(0));
-        const url = this.fullbox('url ', 0, 1);  // self-contained
-        const dref = this.fullbox('dref', 0, 0, ...this.u32(1), ...url);
-        const dinf = this.box('dinf', ...dref);
-        const minf = this.box('minf', ...vmhd, ...dinf, ...stbl);
-        
-        const mdhd = this.fullbox('mdhd', 0, 0,
-            ...this.u32(0),                  // creation_time
-            ...this.u32(0),                  // modification_time
-            ...this.u32(this.timescale),     // timescale
-            ...this.u32(this.totalDuration), // duration
-            0x55, 0xc4,                      // language: 'und'
-            ...this.u16(0)                   // quality
-        );
-        
-        const hdlr = this.fullbox('hdlr', 0, 0,
-            ...this.u32(0),                            // pre_defined
-            0x76, 0x69, 0x64, 0x65,                    // handler_type: 'vide'
-            ...Array(12).fill(0),                      // reserved
-            0x56, 0x69, 0x64, 0x65, 0x6f, 0x00         // name: 'Video\0'
-        );
-        
-        const mdia = this.box('mdia', ...mdhd, ...hdlr, ...minf);
-        
-        const tkhd = this.fullbox('tkhd', 0, 3,  // flags: enabled, in_movie
-            ...this.u32(0),                  // creation_time
-            ...this.u32(0),                  // modification_time
-            ...this.u32(1),                  // track_ID
-            ...this.u32(0),                  // reserved
-            ...this.u32(this.totalDuration), // duration
-            ...Array(8).fill(0),             // reserved
-            ...this.u16(0),                  // layer
-            ...this.u16(0),                  // alternate_group
-            ...this.u16(0),                  // volume
-            ...this.u16(0),                  // reserved
-            // matrix (identity)
-            ...this.u32(0x00010000), ...this.u32(0), ...this.u32(0),
-            ...this.u32(0), ...this.u32(0x00010000), ...this.u32(0),
-            ...this.u32(0), ...this.u32(0), ...this.u32(0x40000000),
-            ...this.u32(this.width << 16),   // width (16.16)
-            ...this.u32(this.height << 16)   // height (16.16)
-        );
-        
-        const trak = this.box('trak', ...tkhd, ...mdia);
-        
-        const mvhd = this.fullbox('mvhd', 0, 0,
-            ...this.u32(0),                  // creation_time
-            ...this.u32(0),                  // modification_time
-            ...this.u32(this.timescale),     // timescale
-            ...this.u32(this.totalDuration), // duration
-            0x00, 0x01, 0x00, 0x00,          // rate: 1.0
-            0x01, 0x00,                      // volume: 1.0
-            ...Array(10).fill(0),            // reserved
-            // matrix (identity)
-            ...this.u32(0x00010000), ...this.u32(0), ...this.u32(0),
-            ...this.u32(0), ...this.u32(0x00010000), ...this.u32(0),
-            ...this.u32(0), ...this.u32(0), ...this.u32(0x40000000),
-            ...Array(24).fill(0),            // pre_defined
-            ...this.u32(2)                   // next_track_ID
-        );
-        
-        const moov = this.box('moov', ...mvhd, ...trak);
-        
-        // Calculate actual mdat offset
-        const mdatOffset = ftyp.length + moov.length + 8;
-        
-        // Patch stco with correct offset - find stco in moov
-        const moovArr = moov;
-        for (let i = 0; i < moovArr.length - 8; i++) {
-            if (moovArr[i] === 0x73 && moovArr[i+1] === 0x74 && 
-                moovArr[i+2] === 0x63 && moovArr[i+3] === 0x6f) {
-                // Found 'stco', offset value is 8 bytes after (4 size + 4 type + 4 version/flags + 4 count)
-                const offsetPos = i + 12;
-                const offsetBytes = this.u32(mdatOffset);
-                moovArr[offsetPos] = offsetBytes[0];
-                moovArr[offsetPos+1] = offsetBytes[1];
-                moovArr[offsetPos+2] = offsetBytes[2];
-                moovArr[offsetPos+3] = offsetBytes[3];
-                break;
-            }
-        }
-        
-        // Build mdat
-        const mdat = [
-            ...this.u32(mdatSize),
-            0x6d, 0x64, 0x61, 0x74  // 'mdat'
-        ];
-        
-        // Combine all parts
-        const totalSize = ftyp.length + moov.length + mdatSize;
-        const result = new Uint8Array(totalSize);
-        
-        let offset = 0;
-        result.set(new Uint8Array(ftyp), offset);
-        offset += ftyp.length;
-        
-        result.set(new Uint8Array(moov), offset);
-        offset += moov.length;
-        
-        result.set(new Uint8Array(mdat), offset);
-        offset += 8;
-        
-        // Write sample data
-        for (const sample of this.samples) {
-            result.set(sample.data, offset);
-            offset += sample.data.length;
-        }
-        
-        return new Blob([result], { type: 'video/mp4' });
-    }
-}
-
-// -------------------------------------------------------------
-// EXPORT PIPELINE
-// -------------------------------------------------------------
-
-async function exportVideo() {
-    if (!frames || isExporting) return;
-    
-    // Parse format selection (now contains JSON with codec, ext, container)
-    let formatInfo;
-    try {
-        formatInfo = JSON.parse(formatSelect.value);
-    } catch {
-        formatInfo = { codec: 'vp8', ext: 'webm', container: 'webm' };
-    }
-    const { codec, ext, container } = formatInfo;
-    
-    isExporting = true;
-    exportCsvBtn.disabled = true;
-    exportVideoBtn.disabled = true;
-    formatSelect.disabled = true;
-    playBtn.disabled = true;
-    slider.disabled = true;
-    prevFileBtn.disabled = true;
-    nextFileBtn.disabled = true;
-    
-    const filesToExport = fileQueue.length > 1 ? fileQueue : [{ name: currentFileName, _currentMp4: mp4, _currentFrames: frames }];
-    const totalFiles = filesToExport.length;
-    
-    exportVideoBtn.textContent = `Preparing... (0/${totalFiles})`;
-
-    // We need to get config from first file for encoder setup
-    let firstConfig = null;
-    let totalFrameCount = 0;
-    
-    // Pre-scan all files to get total frame count and verify dimensions match
-    const fileData = [];
-    for (let f = 0; f < filesToExport.length; f++) {
-        let fileMp4, fileFrames;
-        if (filesToExport[f]._currentMp4) {
-            // Current file already loaded
-            fileMp4 = filesToExport[f]._currentMp4;
-            fileFrames = filesToExport[f]._currentFrames;
-        } else {
-            // Load file
-            const file = filesToExport[f];
-            fileMp4 = new DashcamMP4(await file.arrayBuffer());
-            fileFrames = fileMp4.parseFrames(seiType);
-        }
-        
-        const config = fileMp4.getConfig();
-        if (!firstConfig) {
-            firstConfig = config;
-        } else if (config.width !== firstConfig.width || config.height !== firstConfig.height) {
-            alert(`File ${filesToExport[f].name} has different dimensions. All files must have the same resolution.`);
-            isExporting = false;
-            exportCsvBtn.disabled = false;
-            exportVideoBtn.disabled = false;
-            formatSelect.disabled = false;
-            playBtn.disabled = false;
-            slider.disabled = false;
-            if (fileQueue.length > 1) {
-                prevFileBtn.disabled = currentFileIndex === 0;
-                nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
-            }
-            exportVideoBtn.textContent = 'Export Video';
-            return;
-        }
-        
-        const firstKf = fileFrames.findIndex(fr => fr.keyframe);
-        totalFrameCount += fileFrames.length - (firstKf >= 0 ? firstKf : 0);
-        fileData.push({ mp4: fileMp4, frames: fileFrames, config, firstKeyframe: firstKf >= 0 ? firstKf : 0 });
-    }
-    
-    // Calculate actual average framerate from first file
-    const avgDurationMs = firstConfig.durations.length > 0 
-        ? firstConfig.durations.reduce((a, b) => a + b, 0) / firstConfig.durations.length 
-        : 33.333;
-    const actualFramerate = 1000 / avgDurationMs;
-    
-    // Choose writer based on container format
-    const writer = container === 'mp4' 
-        ? new MP4Writer(codec, actualFramerate)
-        : new WebMWriter(codec, actualFramerate);
-
-    let exportDecoder = null;
-    let videoEncoder = null;
-    let encodeError = null;
-    let globalFramesProcessed = 0;
-    // Track cumulative timestamp based on actual frame durations
-    let cumulativeTimestampUs = 0;
-    
-    // Reset smoothed accelerometer for consistent export
-    smoothedAccelX = 0;
-    smoothedAccelY = 0;
-    smoothedTotalG = 0;
-    
-    try {
-        videoEncoder = new VideoEncoder({
-            output: (chunk, meta) => {
-                writer.addFrame(chunk, meta, firstConfig.width, firstConfig.height);
-            },
-            error: (e) => {
-                console.error("Encoder error", e);
-                encodeError = e;
-            }
-        });
-        
-        // Configure encoder - H.264 needs avc format for proper AVCC output
-        const encoderConfig = {
-            codec: codec,
-            width: firstConfig.width,
-            height: firstConfig.height,
-            bitrate: 5_000_000, 
-            framerate: actualFramerate
-        };
-        
-        // For H.264, specify annexb=false to get AVCC format (length-prefixed NALUs)
-        if (codec.startsWith('avc')) {
-            encoderConfig.avc = { format: 'avc' };
-        } else {
-            encoderConfig.alpha = 'discard';
-        }
-        
-        videoEncoder.configure(encoderConfig);
-
-        // Process each file
-        for (let fileIdx = 0; fileIdx < fileData.length; fileIdx++) {
-            if (!isExporting || encodeError) break;
-            
-            const { mp4: currentMp4, frames: currentFrames, config: currentConfig, firstKeyframe: currentFirstKf } = fileData[fileIdx];
-            
-            exportVideoBtn.textContent = `File ${fileIdx + 1}/${totalFiles}...`;
-            
-            // Create decoder for this file
-            if (exportDecoder && exportDecoder.state !== 'closed') {
-                await exportDecoder.flush();
-                exportDecoder.close();
-            }
-            
-            let fileFramesProcessed = 0;
-            const fileFrameCount = currentFrames.length - currentFirstKf;
-            
-            await new Promise((resolve, reject) => {
-                exportDecoder = new VideoDecoder({
-                    output: async (frame) => {
-                        if (encodeError || !isExporting) { frame.close(); return; }
-                        
-                        // 1. Draw frame to canvas
-                        ctx.drawImage(frame, 0, 0);
-                        
-                        // 2. Draw Overlay to canvas
-                        const actualFrameIdx = currentFirstKf + fileFramesProcessed;
-                        try {
-                            if (currentFrames[actualFrameIdx] && currentFrames[actualFrameIdx].sei) {
-                                drawMetadataOverlay(currentFrames[actualFrameIdx].sei, actualFrameIdx);
-                            }
-                            if (globalFramesProcessed % 15 === 0) { 
-                                frameNum.textContent = `Exporting ${globalFramesProcessed + 1}/${totalFrameCount}`;
-                            }
-                        } catch(e) {}
-
-                        // 3. Create NEW frame from canvas (with overlay!)
-                        const frameDurationMs = currentConfig.durations[actualFrameIdx] || avgDurationMs;
-                        const timestamp = Math.round(cumulativeTimestampUs);
-                        const duration = Math.round(frameDurationMs * 1000);
-                        const keyFrame = (globalFramesProcessed % 60 === 0);
-                        
-                        if (videoEncoder.state === 'configured') {
-                            const overlayFrame = new VideoFrame(canvas, { timestamp, duration });
-                            videoEncoder.encode(overlayFrame, { keyFrame });
-                            overlayFrame.close();
-                        }
-                        frame.close();
-                        cumulativeTimestampUs += frameDurationMs * 1000;
-                        fileFramesProcessed++;
-                        globalFramesProcessed++;
-                    },
-                    error: (e) => {
-                        console.error("Decoder error", e);
-                        reject(e);
-                    }
-                });
-                
-                exportDecoder.configure({
-                    codec: currentConfig.codec,
-                    width: currentConfig.width,
-                    height: currentConfig.height
-                });
-                
-                // Helper function to create chunks for this file
-                const createChunkForFile = (fr) => {
-                    const sc = new Uint8Array([0, 0, 0, 1]);
-                    const data = fr.keyframe
-                        ? DashcamMP4.concat(sc, fr.sps || currentConfig.sps, sc, fr.pps || currentConfig.pps, sc, fr.data)
-                        : DashcamMP4.concat(sc, fr.data);
-                    
-                    let timestamp = 0;
-                    for (let i = 0; i < fr.index; i++) {
-                        timestamp += (currentConfig.durations[i] || currentConfig.durations[0] || 33.333) * 1000;
-                    }
-                    
-                    return new EncodedVideoChunk({
-                        type: fr.keyframe ? 'key' : 'delta',
-                        timestamp: Math.round(timestamp),
-                        data
+                if (needsReset) {
+                    await playbackDecoder.reset();
+                    const config = mp4.getConfig();
+                    playbackDecoder.configure({
+                        codec: config.codec,
+                        width: config.width,
+                        height: config.height
                     });
-                };
-                
-                // Process all frames from this file
-                (async () => {
-                    for (let i = currentFirstKf; i < currentFrames.length; i++) {
-                        if (!isExporting || encodeError) break;
-                        
-                        if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+                    lastKeyframeIndex = keyIdx;
 
-                        while ((videoEncoder.encodeQueueSize > 5 || exportDecoder.decodeQueueSize > 15) && isExporting) {
-                            await new Promise(r => setTimeout(r, 10));
-                        }
-
-                        if (exportDecoder.state === 'configured') {
-                            exportDecoder.decode(createChunkForFile(currentFrames[i]));
-                        }
+                    // Decode from keyframe to target
+                    for (let i = keyIdx; i <= index; i++) {
+                        playbackDecoder.decode(createChunk(frames[i]));
                     }
+                    lastDecodedIndex = index;
+                    // Flush only after seek to force output
+                    await playbackDecoder.flush();
+                } else {
+                    // Sequential playback - decode next frame(s)
+                    for (let i = lastDecodedIndex + 1; i <= index; i++) {
+                        playbackDecoder.decode(createChunk(frames[i]));
+                    }
+                    lastDecodedIndex = index;
+                    // No flush for sequential - decoder outputs frames as they complete
+                }
+            } catch (e) {
+                console.error("showFrame error:", e);
+                decoding = false;
+            }
+        }
 
-                    if (exportDecoder.state === 'configured') await exportDecoder.flush();
-                    resolve();
-                })();
+        function createChunk(frame) {
+            const sc = new Uint8Array([0, 0, 0, 1]);
+            const config = mp4.getConfig();
+            const data = frame.keyframe
+                ? DashcamMP4.concat(sc, frame.sps || config.sps, sc, frame.pps || config.pps, sc, frame.data)
+                : DashcamMP4.concat(sc, frame.data);
+
+            // Calculate cumulative timestamp from actual frame durations (in microseconds)
+            let timestamp = 0;
+            for (let i = 0; i < frame.index; i++) {
+                timestamp += (config.durations[i] || config.durations[0] || 33.333) * 1000;
+            }
+
+            return new EncodedVideoChunk({
+                type: frame.keyframe ? 'key' : 'delta',
+                timestamp: Math.round(timestamp),
+                data
             });
         }
 
-        if (videoEncoder.state === 'configured') await videoEncoder.flush();
-
-        if (isExporting && !encodeError) {
-            writer.finalize();
-            const blob = writer.getBlob();
-            // Use first filename for single file, or create merged name for multiple
-            let outputName;
-            if (fileQueue.length > 1) {
-                // Extract timestamp from first file for output name
-                const firstFileName = fileQueue[0].name;
-                const match = firstFileName.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/);
-                outputName = match ? `dashcam_${match[1]}_merged` : 'dashcam_merged';
-            } else {
-                outputName = (currentFileName || 'dashcam').replace(/\.mp4$/i, '');
+        function renderSei(sei) {
+            metaList.innerHTML = '';
+            if (!seiFields) return;
+            for (const { propName, label, enumMap } of seiFields) {
+                const value = sei?.[propName];
+                const item = document.createElement('div');
+                item.className = 'item';
+                const displayValue = value != null ? DashcamHelpers.formatValue(value, enumMap) : '—';
+                item.innerHTML = `<span class="label">${label}</span><span class="value">${displayValue}</span>`;
+                metaList.appendChild(item);
             }
-            DashcamHelpers.downloadBlob(blob, `${outputName}_overlay.${ext}`);
         }
 
-    } catch (e) {
-        console.error(e);
-        alert("Export failed: " + e.message);
-    } finally {
-        try { if(exportDecoder && exportDecoder.state !== 'closed') exportDecoder.close(); } catch(e){}
-        try { if(videoEncoder && videoEncoder.state !== 'closed') videoEncoder.close(); } catch(e){}
-        
-        isExporting = false;
-        exportCsvBtn.disabled = false;
-        exportVideoBtn.disabled = false;
-        formatSelect.disabled = false;
-        playBtn.disabled = false;
-        slider.disabled = false;
-        if (fileQueue.length > 1) {
-            prevFileBtn.disabled = currentFileIndex === 0;
-            nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
+        function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            if (fill) ctx.fill();
+            if (stroke) ctx.stroke();
         }
-        exportVideoBtn.textContent = 'Export Video';
-    }
-}
 
-async function exportCsv() {
-    if (!frames || !seiFieldsCsv) return;
-    const messages = frames.map(f => f.sei).filter(Boolean);
-    if (!messages.length) { alert('No SEI metadata to export.'); return; }
-    const filename = (currentFileName || 'dashcam').replace(/\.mp4$/i, '') + '_sei.csv';
-    DashcamHelpers.downloadBlob(new Blob([DashcamHelpers.buildCsv(messages, seiFieldsCsv)], { type: 'text/csv' }), filename);
-}
-</script>
+        function drawMetadataOverlay(sei, frameIndex) {
+            if (!sei) return;
+            ctx.save();
+            const scale = canvas.width / 1280;
+            const boxWidth = 400 * scale;
+            const boxHeight = 180 * scale;
+            const cornerRadius = 20 * scale;
+            const padding = 20 * scale;
+            const x = (canvas.width - boxWidth) / 2;
+            const y = 40 * scale;
+
+            const bgColor = '#f0f0f0a0';
+            const blueColor = '#007aff';
+            const greenColor = '#34c759';
+            const inactivePedalColor = 'rgba(0, 0, 0, 0.25)';
+            const activePedalColor = '#ff3b30';
+            const textColor = '#3a3a3c';
+            const secondaryTextColor = '#8e8e93';
+            let wheelColor = '#636366';
+            const gearBgColor = '#d1d1d680';
+
+            const speedFontSize = 80 * scale;
+            const unitFontSize = 24 * scale;
+            const stateFontSize = 28 * scale;
+            const gearFontSize = 32 * scale;
+
+            ctx.fillStyle = bgColor;
+            roundRect(ctx, x, y, boxWidth, boxHeight, cornerRadius, true, false);
+
+            const speedVal = sei.vehicleSpeedMps;
+            const gearVal = sei.gearState;
+            const autopilotVal = sei.autopilotState;
+            const leftBlinker = sei.blinkerOnLeft;
+            const rightBlinker = sei.blinkerOnRight;
+            const steeringAngle = sei.steeringWheelAngle || 0;
+            const brakeApplied = sei.brakeApplied;
+            const accelPos = sei.acceleratorPedalPosition || 0;
+
+            let speedMph = '—';
+            if (speedVal != null) {
+                speedMph = Math.round(speedVal * 2.23694).toString();
+            }
+
+            let gearStr = 'P';
+            let gearColor = secondaryTextColor;
+            if (gearVal != null) {
+                const gearFieldDef = seiFields.find(f => f.propName === 'gearState');
+                if (gearFieldDef && gearFieldDef.enumMap) {
+                    const valStr = DashcamHelpers.formatValue(gearVal, gearFieldDef.enumMap);
+                    if (valStr === 'GEAR_DRIVE') { gearStr = 'D'; gearColor = blueColor; }
+                    else if (valStr === 'GEAR_REVERSE') { gearStr = 'R'; }
+                    else if (valStr === 'GEAR_NEUTRAL') { gearStr = 'N'; }
+                }
+            }
+
+            let stateStr = '';
+            if (autopilotVal != null) {
+                const apFieldDef = seiFields.find(f => f.propName === 'autopilotState');
+                if (apFieldDef && apFieldDef.enumMap) {
+                    const valStr = DashcamHelpers.formatValue(autopilotVal, apFieldDef.enumMap);
+                    if (valStr === 'SELF_DRIVING') {
+                        stateStr = 'Self-Driving';
+                        wheelColor = blueColor;
+                    } else if (valStr === 'AUTOSTEER') {
+                        stateStr = 'Autosteer';
+                        wheelColor = blueColor;
+                    } else if (valStr === 'TACC') {
+                        stateStr = 'Traffic-Aware Cruise Control';
+                    }
+                }
+            }
+
+            const showBlink = (frameIndex % 30) < 15;
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const centerX = x + boxWidth / 2;
+            const centerY = y + boxHeight / 2;
+
+            ctx.fillStyle = textColor;
+            ctx.font = `600 ${speedFontSize}px sans-serif`;
+            ctx.fillText(speedMph, centerX, centerY - 15 * scale);
+
+            ctx.fillStyle = secondaryTextColor;
+            ctx.font = `500 ${unitFontSize}px sans-serif`;
+            ctx.fillText('MPH', centerX, centerY + 30 * scale);
+
+            if (stateStr) {
+                ctx.fillStyle = blueColor;
+                ctx.font = `500 ${stateFontSize}px sans-serif`;
+                ctx.fillText(stateStr, centerX, y + boxHeight - 25 * scale);
+            }
+
+            const gearX = x + padding + gearFontSize / 2;
+            const gearY = y + padding + gearFontSize / 2;
+
+            ctx.save();
+            ctx.fillStyle = gearBgColor;
+            ctx.beginPath();
+            ctx.arc(gearX, gearY, gearFontSize * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.fillStyle = gearColor;
+            ctx.font = `600 ${gearFontSize}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(gearStr, gearX, gearY);
+
+            const iconSize = 36 * scale;
+            const iconX = x + boxWidth - padding - iconSize;
+            const iconY = y + padding;
+
+            ctx.save();
+            ctx.translate(iconX + iconSize / 2, iconY + iconSize / 2);
+            ctx.rotate(steeringAngle * Math.PI / 180);
+            ctx.translate(-iconSize / 2, -iconSize / 2);
+            ctx.scale(iconSize / 100, iconSize / 100);
+
+            ctx.fillStyle = wheelColor;
+
+            const wheelPath = new Path2D();
+            wheelPath.arc(50, 50, 45, 0, Math.PI * 2);
+            wheelPath.arc(50, 50, 30, 0, Math.PI * 2, true);
+            wheelPath.moveTo(62, 50);
+            wheelPath.arc(50, 50, 12, 0, Math.PI * 2);
+            wheelPath.rect(8, 42.5, 30, 15);
+            wheelPath.rect(62, 42.5, 30, 15);
+            wheelPath.rect(42.5, 62, 15, 30);
+
+            ctx.fill(wheelPath);
+            ctx.restore();
+
+            ctx.fillStyle = greenColor;
+            const arrowY = centerY - 15 * scale;
+            const arrowSize = 24 * scale;
+
+            const leftArrowX = x + boxWidth * 0.25;
+            const rightArrowX = x + boxWidth * 0.75;
+
+            const indicatorPath = new Path2D("M50 0 L90 50 L70 50 L70 100 L30 100 L30 50 L10 50 Z");
+
+            if (leftBlinker && showBlink) {
+                ctx.save();
+                ctx.translate(leftArrowX, arrowY);
+                ctx.rotate(-Math.PI / 2);
+                ctx.translate(-arrowSize / 2, -arrowSize / 2);
+                ctx.scale(arrowSize / 100, arrowSize / 100);
+                ctx.fill(indicatorPath);
+                ctx.restore();
+            }
+            if (rightBlinker && showBlink) {
+                ctx.save();
+                ctx.translate(rightArrowX, arrowY);
+                ctx.rotate(Math.PI / 2);
+                ctx.translate(-arrowSize / 2, -arrowSize / 2);
+                ctx.scale(arrowSize / 100, arrowSize / 100);
+                ctx.fill(indicatorPath);
+                ctx.restore();
+            }
+
+            const pedalIconSize = 24 * scale;
+            const pedalY = y + boxHeight - padding - pedalIconSize;
+
+            ctx.save();
+            ctx.translate(x + padding, pedalY);
+            ctx.scale(pedalIconSize / 24, pedalIconSize / 24);
+            ctx.fillStyle = brakeApplied ? activePedalColor : inactivePedalColor;
+            const brakePath = new Path2D("M4 2h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z");
+            ctx.fill(brakePath);
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(x + boxWidth - padding - pedalIconSize, pedalY);
+            ctx.scale(pedalIconSize / 24, pedalIconSize / 24);
+            ctx.fillStyle = accelPos > 0 ? activePedalColor : inactivePedalColor;
+            const accelPath = new Path2D("M7 2h10c1.1 0 2 .9 2 2v16c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z");
+            ctx.fill(accelPath);
+            ctx.restore();
+
+            ctx.restore();
+
+            // Draw accelerometer in lower right corner
+            drawAccelerometer(sei, scale);
+        }
+
+        // Smoothing for accelerometer display
+        let smoothedAccelX = 0;
+        let smoothedAccelY = 0;
+        let smoothedTotalG = 0;
+        const accelSmoothingFactor = 0.15; // Lower = smoother, higher = more responsive
+
+        function drawAccelerometer(sei, scale) {
+            let accelX = sei.linearAccelerationMps2X || 0;
+            let accelY = sei.linearAccelerationMps2Y || 0;
+
+            // Zero out acceleration when vehicle is stationary
+            const speed = sei.vehicleSpeedMps || 0;
+            if (speed < 0.5) {
+                accelX = 0;
+                accelY = 0;
+            }
+
+            // Apply smoothing
+            smoothedAccelX = smoothedAccelX + (accelX - smoothedAccelX) * accelSmoothingFactor;
+            smoothedAccelY = smoothedAccelY + (accelY - smoothedAccelY) * accelSmoothingFactor;
+
+            // Widget dimensions - 50% bigger
+            const widgetSize = 180 * scale;
+            const padding = 20 * scale;
+            const cornerRadius = 22 * scale;
+
+            // Position in lower right
+            const wx = canvas.width - widgetSize - padding;
+            const wy = canvas.height - widgetSize - padding;
+
+            // Colors matching the theme
+            const bgColor = '#f0f0f0a0';
+            const ringColor = '#d1d1d6';
+            const gridColor = '#c7c7cc';
+            const dotColor = '#007aff';
+            const textColor = '#3a3a3c';
+            const secondaryTextColor = '#8e8e93';
+
+            ctx.save();
+
+            // Background
+            ctx.fillStyle = bgColor;
+            roundRect(ctx, wx, wy, widgetSize, widgetSize, cornerRadius, true, false);
+
+            // Title at top
+            ctx.fillStyle = textColor;
+            ctx.font = `600 ${16 * scale}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('G-FORCE', wx + widgetSize / 2, wy + 20 * scale);
+
+            // G-Force circle area - moved down
+            const centerX = wx + widgetSize / 2;
+            const centerY = wy + widgetSize / 2 + 8 * scale;
+            const radius = 60 * scale;
+
+            // Outer ring
+            ctx.strokeStyle = ringColor;
+            ctx.lineWidth = 2.5 * scale;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Inner reference circles (0.5g)
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 1.5 * scale;
+            ctx.setLineDash([4 * scale, 4 * scale]);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Crosshairs
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 1.5 * scale;
+            ctx.beginPath();
+            ctx.moveTo(centerX - radius, centerY);
+            ctx.lineTo(centerX + radius, centerY);
+            ctx.moveTo(centerX, centerY - radius);
+            ctx.lineTo(centerX, centerY + radius);
+            ctx.stroke();
+
+            // Calculate dot position using smoothed values
+            const maxG = 0.75;
+            const gScale = radius / (maxG * 9.81);
+
+            const dotX = centerX + (smoothedAccelY * gScale);
+            const dotY = centerY - (smoothedAccelX * gScale);
+
+            // Clamp to circle
+            const dx = dotX - centerX;
+            const dy = dotY - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            let finalDotX = dotX;
+            let finalDotY = dotY;
+            if (dist > radius) {
+                finalDotX = centerX + (dx / dist) * radius;
+                finalDotY = centerY + (dy / dist) * radius;
+            }
+
+            // Draw trail/glow effect
+            const gradient = ctx.createRadialGradient(finalDotX, finalDotY, 0, finalDotX, finalDotY, 18 * scale);
+            gradient.addColorStop(0, 'rgba(0, 122, 255, 0.6)');
+            gradient.addColorStop(1, 'rgba(0, 122, 255, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(finalDotX, finalDotY, 18 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw main dot
+            ctx.fillStyle = dotColor;
+            ctx.beginPath();
+            ctx.arc(finalDotX, finalDotY, 9 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Calculate total lateral G-force using smoothed values
+            const rawTotalG = Math.sqrt((smoothedAccelX * smoothedAccelX) + (smoothedAccelY * smoothedAccelY)) / 9.81;
+            smoothedTotalG = smoothedTotalG + (rawTotalG - smoothedTotalG) * accelSmoothingFactor;
+
+            // Draw G-force number near the dot
+            if (smoothedTotalG > 0.02) {
+                const labelOffset = 24 * scale;
+                const labelAngle = Math.atan2(finalDotY - centerY, finalDotX - centerX);
+                const labelX = finalDotX + Math.cos(labelAngle) * labelOffset;
+                const labelY = finalDotY + Math.sin(labelAngle) * labelOffset;
+
+                const gText = smoothedTotalG.toFixed(2);
+                ctx.font = `600 ${14 * scale}px sans-serif`;
+                const textWidth = ctx.measureText(gText).width;
+                const pillPadding = 5 * scale;
+
+                ctx.fillStyle = 'rgba(0, 122, 255, 0.85)';
+                roundRect(ctx, labelX - textWidth / 2 - pillPadding, labelY - 9 * scale, textWidth + pillPadding * 2, 18 * scale, 6 * scale, true, false);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(gText, labelX, labelY);
+            }
+
+            // Draw center reference dot
+            ctx.fillStyle = secondaryTextColor;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 4 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        class WebMWriter {
+            constructor(codec, framerate = 30) {
+                this.blobs = [];
+                this.clusterTimecode = 0;
+                this.clusterStartOffset = -1;
+                this.headerWritten = false;
+                this.currentCluster = [];
+                this.clusterDuration = 32767; // Max duration for 16-bit signed timecode
+                this.codec = codec || 'vp8';
+                this.framerate = framerate;
+                this.totalSize = 0;
+                this.segmentContentStart = 0;
+                this.lastTimecode = 0;
+                this.keyframeTimes = []; // For Cues
+                this.keyframePositions = []; // Byte positions for Cues
+                this.clusterPositions = []; // Track cluster start positions
+                this.trackNumber = 1;
+                this.width = 0;
+                this.height = 0;
+            }
+
+            // EBML Variable-size Integer encoding
+            getVint(value) {
+                if (value < 0x7F) {
+                    return new Uint8Array([value | 0x80]);
+                } else if (value < 0x3FFF) {
+                    return new Uint8Array([0x40 | (value >> 8), value & 0xFF]);
+                } else if (value < 0x1FFFFF) {
+                    return new Uint8Array([0x20 | (value >> 16), (value >> 8) & 0xFF, value & 0xFF]);
+                } else if (value < 0x0FFFFFFF) {
+                    return new Uint8Array([0x10 | (value >> 24), (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF]);
+                } else {
+                    // Use 8-byte VINT for larger values
+                    const bytes = new Uint8Array(8);
+                    bytes[0] = 0x01;
+                    let v = value;
+                    for (let i = 7; i >= 1; i--) {
+                        bytes[i] = v & 0xFF;
+                        v = Math.floor(v / 256);
+                    }
+                    return bytes;
+                }
+            }
+
+            // Get EBML Element ID bytes
+            getIdBytes(id) {
+                if (id <= 0x7F) return new Uint8Array([id]);
+                if (id <= 0x3FFF) return new Uint8Array([(id >> 8) & 0xFF, id & 0xFF]);
+                if (id <= 0x1FFFFF) return new Uint8Array([(id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF]);
+                return new Uint8Array([(id >> 24) & 0xFF, (id >> 16) & 0xFF, (id >> 8) & 0xFF, id & 0xFF]);
+            }
+
+            // Create an unsigned integer element with minimum bytes
+            createUintElement(id, value) {
+                const idBytes = this.getIdBytes(id);
+
+                // Determine minimum bytes needed
+                let size = 1;
+                let v = value;
+                while (v >= 256) { v = Math.floor(v / 256); size++; }
+
+                const dataBytes = new Uint8Array(size);
+                v = value;
+                for (let i = size - 1; i >= 0; i--) {
+                    dataBytes[i] = v & 0xFF;
+                    v = Math.floor(v / 256);
+                }
+
+                const sizeBytes = this.getVint(size);
+                const total = new Uint8Array(idBytes.length + sizeBytes.length + size);
+                total.set(idBytes, 0);
+                total.set(sizeBytes, idBytes.length);
+                total.set(dataBytes, idBytes.length + sizeBytes.length);
+                return total;
+            }
+
+            // Create a float element (always 4 bytes for 32-bit or 8 bytes for 64-bit)
+            createFloatElement(id, value, use64bit = false) {
+                const idBytes = this.getIdBytes(id);
+                const size = use64bit ? 8 : 4;
+                const buffer = new ArrayBuffer(size);
+                const view = new DataView(buffer);
+                if (use64bit) {
+                    view.setFloat64(0, value, false); // Big-endian
+                } else {
+                    view.setFloat32(0, value, false); // Big-endian
+                }
+                const dataBytes = new Uint8Array(buffer);
+                const sizeBytes = this.getVint(size);
+
+                const total = new Uint8Array(idBytes.length + sizeBytes.length + size);
+                total.set(idBytes, 0);
+                total.set(sizeBytes, idBytes.length);
+                total.set(dataBytes, idBytes.length + sizeBytes.length);
+                return total;
+            }
+
+            // Create a string element
+            createStringElement(id, str) {
+                const idBytes = this.getIdBytes(id);
+                const dataBytes = new TextEncoder().encode(str);
+                const sizeBytes = this.getVint(dataBytes.length);
+
+                const total = new Uint8Array(idBytes.length + sizeBytes.length + dataBytes.length);
+                total.set(idBytes, 0);
+                total.set(sizeBytes, idBytes.length);
+                total.set(dataBytes, idBytes.length + sizeBytes.length);
+                return total;
+            }
+
+            // Create a binary element
+            createBinaryElement(id, data) {
+                const idBytes = this.getIdBytes(id);
+                const dataBytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+                const sizeBytes = this.getVint(dataBytes.length);
+
+                const total = new Uint8Array(idBytes.length + sizeBytes.length + dataBytes.length);
+                total.set(idBytes, 0);
+                total.set(sizeBytes, idBytes.length);
+                total.set(dataBytes, idBytes.length + sizeBytes.length);
+                return total;
+            }
+
+            // Create a master element containing children
+            createMaster(id, children) {
+                let size = 0;
+                children.forEach(c => size += c.length);
+
+                const idBytes = this.getIdBytes(id);
+                const sizeBytes = this.getVint(size);
+
+                const total = new Uint8Array(idBytes.length + sizeBytes.length + size);
+                let offset = 0;
+
+                total.set(idBytes, offset); offset += idBytes.length;
+                total.set(sizeBytes, offset); offset += sizeBytes.length;
+
+                children.forEach(c => {
+                    total.set(c, offset);
+                    offset += c.length;
+                });
+                return total;
+            }
+
+            addBlob(blob) {
+                this.blobs.push(blob);
+                this.totalSize += blob.length;
+            }
+
+            writeHeader(width, height, codecPrivate) {
+                this.width = width;
+                this.height = height;
+                const codecId = this.codec.includes('vp9') ? "V_VP9" : "V_VP8";
+
+                // EBML Header
+                const ebmlHeader = this.createMaster(0x1A45DFA3, [
+                    this.createUintElement(0x4286, 1),      // EBMLVersion
+                    this.createUintElement(0x42F7, 1),      // EBMLReadVersion
+                    this.createUintElement(0x42F2, 4),      // EBMLMaxIDLength
+                    this.createUintElement(0x42F3, 8),      // EBMLMaxSizeLength
+                    this.createStringElement(0x4282, "webm"), // DocType
+                    this.createUintElement(0x4287, 4),      // DocTypeVersion
+                    this.createUintElement(0x4285, 2)       // DocTypeReadVersion
+                ]);
+                this.addBlob(ebmlHeader);
+
+                // Segment with unknown size (will be patched later)
+                // Using 0x01FFFFFFFFFFFFFF for unknown size
+                this.addBlob(new Uint8Array([0x18, 0x53, 0x80, 0x67, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]));
+                this.segmentContentStart = this.totalSize;
+
+                // Segment Info
+                const segmentUID = new Uint8Array(16);
+                crypto.getRandomValues(segmentUID);
+
+                const defaultDurationNs = Math.round(1000000000 / this.framerate);
+
+                const info = this.createMaster(0x1549A966, [
+                    this.createBinaryElement(0x73A4, segmentUID),           // SegmentUID
+                    this.createStringElement(0x4D80, "Tesla Dashcam Overlay"), // MuxingApp
+                    this.createStringElement(0x5741, "Tesla Dashcam Overlay"), // WritingApp
+                    this.createUintElement(0x2AD7B1, 1000000),              // TimecodeScale (1ms)
+                    this.createFloatElement(0x4489, 0, true)                // Duration placeholder (64-bit float)
+                ]);
+                this.addBlob(info);
+
+                // Tracks
+                const videoSettings = [
+                    this.createUintElement(0x9A, 0),        // FlagInterlaced (0 = not interlaced)
+                    this.createUintElement(0xB0, width),    // PixelWidth
+                    this.createUintElement(0xBA, height),   // PixelHeight
+                    this.createUintElement(0x54B0, width),  // DisplayWidth
+                    this.createUintElement(0x54BA, height)  // DisplayHeight
+                ];
+
+                const trackEntryChildren = [
+                    this.createUintElement(0xD7, this.trackNumber),  // TrackNumber
+                    this.createUintElement(0x73C5, this.trackNumber), // TrackUID (use same as TrackNumber for simplicity)
+                    this.createUintElement(0x9C, 0),                 // FlagLacing (0 = no lacing)
+                    this.createStringElement(0x22B59C, "und"),       // Language
+                    this.createStringElement(0x86, codecId),         // CodecID
+                    this.createUintElement(0x83, 1),                 // TrackType (1 = video)
+                    this.createUintElement(0x23E383, defaultDurationNs), // DefaultDuration
+                    this.createMaster(0xE0, videoSettings)           // Video settings
+                ];
+
+                if (codecPrivate && codecPrivate.byteLength > 0) {
+                    trackEntryChildren.push(this.createBinaryElement(0x63A2, new Uint8Array(codecPrivate)));
+                }
+
+                const tracks = this.createMaster(0x1654AE6B, [
+                    this.createMaster(0xAE, trackEntryChildren)
+                ]);
+                this.addBlob(tracks);
+
+                this.headerWritten = true;
+            }
+
+            flushCluster() {
+                if (this.currentCluster.length === 0) return;
+
+                const clusterStartPos = this.totalSize - this.segmentContentStart;
+                this.clusterPositions.push({ timecode: this.clusterTimecode, position: clusterStartPos });
+
+                const timecodeElt = this.createUintElement(0xE7, Math.round(this.clusterTimecode));
+                const children = [timecodeElt, ...this.currentCluster];
+                const cluster = this.createMaster(0x1F43B675, children);
+                this.addBlob(cluster);
+                this.currentCluster = [];
+            }
+
+            addFrame(chunk, meta, width, height) {
+                if (!this.headerWritten) {
+                    let codecPrivate = null;
+                    if (meta && meta.decoderConfig && meta.decoderConfig.description) {
+                        codecPrivate = meta.decoderConfig.description;
+                    }
+                    this.writeHeader(width, height, codecPrivate);
+                }
+
+                const timecode = chunk.timestamp / 1000; // Convert microseconds to milliseconds
+
+                // Start new cluster if needed
+                if (this.clusterStartOffset === -1) {
+                    this.clusterStartOffset = 0;
+                    this.clusterTimecode = timecode;
+                } else if (timecode - this.clusterTimecode >= this.clusterDuration ||
+                    (chunk.type === 'key' && this.currentCluster.length > 0)) {
+                    // Start new cluster on keyframes for better seeking
+                    this.flushCluster();
+                    this.clusterTimecode = timecode;
+                }
+
+                const relTime = Math.round(timecode - this.clusterTimecode);
+                if (relTime < 0 || relTime > 32767) return;
+
+                // Track keyframes for Cues
+                if (chunk.type === 'key') {
+                    this.keyframeTimes.push(timecode);
+                    // Position will be calculated relative to segment start
+                }
+
+                // Create SimpleBlock
+                const flags = (chunk.type === 'key' ? 0x80 : 0x00); // Keyframe flag
+                const trackVint = new Uint8Array([0x81]); // Track 1 as VINT
+
+                const header = new Uint8Array(4);
+                header[0] = trackVint[0];
+                header[1] = (relTime >> 8) & 0xFF;
+                header[2] = relTime & 0xFF;
+                header[3] = flags;
+
+                const data = new Uint8Array(chunk.byteLength);
+                chunk.copyTo(data);
+
+                // SimpleBlock element (0xA3)
+                const blockData = new Uint8Array(header.length + data.length);
+                blockData.set(header, 0);
+                blockData.set(data, header.length);
+
+                const simpleBlock = this.createBinaryElement(0xA3, blockData);
+                this.currentCluster.push(simpleBlock);
+
+                this.lastTimecode = timecode;
+            }
+
+            finalize() {
+                this.flushCluster();
+
+                // Create Cues for keyframe seeking
+                const cuePoints = [];
+                for (let i = 0; i < this.keyframeTimes.length && i < this.clusterPositions.length; i++) {
+                    const cueTime = Math.round(this.keyframeTimes[i]);
+                    // Find the cluster that contains this keyframe
+                    let clusterPos = this.clusterPositions[0].position;
+                    for (const cp of this.clusterPositions) {
+                        if (cp.timecode <= this.keyframeTimes[i]) {
+                            clusterPos = cp.position;
+                        }
+                    }
+
+                    const cueTrackPos = this.createMaster(0xB7, [
+                        this.createUintElement(0xF7, this.trackNumber),  // CueTrack
+                        this.createUintElement(0xF1, clusterPos)         // CueClusterPosition
+                    ]);
+
+                    const cuePoint = this.createMaster(0xBB, [
+                        this.createUintElement(0xB3, cueTime),  // CueTime
+                        cueTrackPos
+                    ]);
+                    cuePoints.push(cuePoint);
+                }
+
+                if (cuePoints.length > 0) {
+                    const cues = this.createMaster(0x1C53BB6B, cuePoints);
+                    this.addBlob(cues);
+                }
+
+                // Patch Segment Size
+                const segmentSize = this.totalSize - this.segmentContentStart;
+                const sizeBytes = new Uint8Array(8);
+                sizeBytes[0] = 0x01; // 8-byte VINT marker
+                let val = segmentSize;
+                for (let i = 7; i >= 1; i--) {
+                    sizeBytes[i] = val & 0xFF;
+                    val = Math.floor(val / 256);
+                }
+                this.blobs[1].set(sizeBytes, 4);
+
+                // Patch Duration in Info element (blob index 2)
+                const frameDurationMs = 1000 / this.framerate;
+                const durationVal = (this.lastTimecode || 0) + frameDurationMs;
+                const dv = new DataView(new ArrayBuffer(8));
+                dv.setFloat64(0, durationVal, false); // Big-endian
+
+                // Find Duration element in Info blob and patch it
+                // Duration element starts after SegmentUID(16) + MuxingApp + WritingApp + TimecodeScale
+                // The structure is: [ID][Size][Data] for each element
+                const infoBlob = this.blobs[2];
+                // Duration is the last element, 8 bytes at the end
+                infoBlob.set(new Uint8Array(dv.buffer), infoBlob.length - 8);
+            }
+
+            getBlob() {
+                return new Blob(this.blobs, { type: 'video/webm' });
+            }
+        }
+
+        // -------------------------------------------------------------
+        // MP4 WRITER (for DaVinci Resolve compatibility)
+        // Simplified MP4 muxer for H.264 video
+        // -------------------------------------------------------------
+
+        class MP4Writer {
+            constructor(codec, framerate = 30) {
+                this.codec = codec;
+                this.framerate = framerate;
+                this.width = 0;
+                this.height = 0;
+                this.timescale = 90000;
+                this.samples = [];
+                this.avcC = null;
+                this.totalDuration = 0;
+            }
+
+            addFrame(chunk, meta, width, height) {
+                if (this.width === 0) {
+                    this.width = width;
+                    this.height = height;
+
+                    // Store AVCC configuration from first keyframe
+                    if (meta && meta.decoderConfig && meta.decoderConfig.description) {
+                        this.avcC = new Uint8Array(meta.decoderConfig.description);
+                    }
+                }
+
+                const data = new Uint8Array(chunk.byteLength);
+                chunk.copyTo(data);
+
+                const pts = Math.round((chunk.timestamp / 1000000) * this.timescale);
+                const duration = Math.round((1 / this.framerate) * this.timescale);
+
+                this.samples.push({
+                    data: data,
+                    pts: pts,
+                    duration: duration,
+                    isKeyframe: chunk.type === 'key'
+                });
+
+                this.totalDuration = pts + duration;
+            }
+
+            u32(v) { return [(v >> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff]; }
+            u16(v) { return [(v >> 8) & 0xff, v & 0xff]; }
+
+            finalize() {
+                // Everything is done in getBlob() for this implementation
+            }
+
+            box(type, ...payload) {
+                const content = payload.flat(Infinity);
+                const size = 8 + content.length;
+                return [
+                    ...this.u32(size),
+                    type.charCodeAt(0), type.charCodeAt(1), type.charCodeAt(2), type.charCodeAt(3),
+                    ...content
+                ];
+            }
+
+            fullbox(type, version, flags, ...payload) {
+                const content = payload.flat(Infinity);
+                const size = 12 + content.length;
+                return [
+                    ...this.u32(size),
+                    type.charCodeAt(0), type.charCodeAt(1), type.charCodeAt(2), type.charCodeAt(3),
+                    version,
+                    (flags >> 16) & 0xff, (flags >> 8) & 0xff, flags & 0xff,
+                    ...content
+                ];
+            }
+
+            getBlob() {
+                const ftyp = this.box('ftyp',
+                    0x69, 0x73, 0x6f, 0x6d,  // major_brand: isom
+                    ...this.u32(512),        // minor_version
+                    0x69, 0x73, 0x6f, 0x6d,  // isom
+                    0x69, 0x73, 0x6f, 0x32,  // iso2
+                    0x61, 0x76, 0x63, 0x31,  // avc1
+                    0x6d, 0x70, 0x34, 0x31   // mp41
+                );
+
+                // Build sample data and calculate sizes
+                let mdatSize = 8;
+                const sampleSizes = [];
+                const sampleFlags = [];
+                const chunkOffsets = [];
+
+                for (const sample of this.samples) {
+                    sampleSizes.push(sample.data.length);
+                    sampleFlags.push(sample.isKeyframe);
+                    mdatSize += sample.data.length;
+                }
+
+                // AVCC - use stored or create default
+                const avcC = this.avcC ? [...this.avcC] : [
+                    1, 66, 0, 31, 255, 225,  // config, profile, compat, level, lengthSize, numSPS
+                    0, 10,  // SPS length
+                    0x67, 0x42, 0x00, 0x1f, 0x96, 0x54, 0x05, 0x01, 0xed, 0x80,  // SPS
+                    1, 0, 4,  // numPPS, PPS length
+                    0x68, 0xce, 0x06, 0xe2   // PPS
+                ];
+
+                // stsd (Sample Description)
+                const avc1 = this.box('avc1',
+                    ...Array(6).fill(0),     // reserved
+                    ...this.u16(1),          // data_reference_index
+                    ...Array(16).fill(0),    // pre_defined, reserved
+                    ...this.u16(this.width),
+                    ...this.u16(this.height),
+                    0x00, 0x48, 0x00, 0x00,  // horiz resolution 72dpi
+                    0x00, 0x48, 0x00, 0x00,  // vert resolution 72dpi
+                    ...this.u32(0),          // reserved
+                    ...this.u16(1),          // frame_count
+                    ...Array(32).fill(0),    // compressorname
+                    ...this.u16(24),         // depth
+                    0xff, 0xff,              // pre_defined
+                    this.box('avcC', ...avcC)
+                );
+
+                const stsd = this.fullbox('stsd', 0, 0,
+                    ...this.u32(1),  // entry_count
+                    ...avc1
+                );
+
+                // stts (Time to Sample) - constant duration
+                const sampleDuration = Math.round(this.timescale / this.framerate);
+                const stts = this.fullbox('stts', 0, 0,
+                    ...this.u32(1),                    // entry_count
+                    ...this.u32(this.samples.length),  // sample_count
+                    ...this.u32(sampleDuration)        // sample_delta
+                );
+
+                // stss (Sync Sample) - keyframes
+                const keyframes = this.samples
+                    .map((s, i) => s.isKeyframe ? i + 1 : null)
+                    .filter(x => x !== null);
+                const stss = this.fullbox('stss', 0, 0,
+                    ...this.u32(keyframes.length),
+                    ...keyframes.flatMap(k => this.u32(k))
+                );
+
+                // stsc (Sample to Chunk) - all samples in one chunk
+                const stsc = this.fullbox('stsc', 0, 0,
+                    ...this.u32(1),                    // entry_count
+                    ...this.u32(1),                    // first_chunk
+                    ...this.u32(this.samples.length),  // samples_per_chunk
+                    ...this.u32(1)                     // sample_description_index
+                );
+
+                // stsz (Sample Size)
+                const stsz = this.fullbox('stsz', 0, 0,
+                    ...this.u32(0),                    // sample_size (0 = variable)
+                    ...this.u32(this.samples.length),  // sample_count
+                    ...sampleSizes.flatMap(s => this.u32(s))
+                );
+
+                // Build moov first to calculate mdat offset
+                const stbl_content = [...stsd, ...stts, ...stss, ...stsc, ...stsz];
+
+                // Placeholder stco - we'll calculate real offset after building moov
+                const stco_placeholder = this.fullbox('stco', 0, 0,
+                    ...this.u32(1),  // entry_count
+                    ...this.u32(0)   // placeholder offset
+                );
+
+                const stbl = this.box('stbl', ...stbl_content, ...stco_placeholder);
+
+                const vmhd = this.fullbox('vmhd', 0, 1, ...Array(8).fill(0));
+                const url = this.fullbox('url ', 0, 1);  // self-contained
+                const dref = this.fullbox('dref', 0, 0, ...this.u32(1), ...url);
+                const dinf = this.box('dinf', ...dref);
+                const minf = this.box('minf', ...vmhd, ...dinf, ...stbl);
+
+                const mdhd = this.fullbox('mdhd', 0, 0,
+                    ...this.u32(0),                  // creation_time
+                    ...this.u32(0),                  // modification_time
+                    ...this.u32(this.timescale),     // timescale
+                    ...this.u32(this.totalDuration), // duration
+                    0x55, 0xc4,                      // language: 'und'
+                    ...this.u16(0)                   // quality
+                );
+
+                const hdlr = this.fullbox('hdlr', 0, 0,
+                    ...this.u32(0),                            // pre_defined
+                    0x76, 0x69, 0x64, 0x65,                    // handler_type: 'vide'
+                    ...Array(12).fill(0),                      // reserved
+                    0x56, 0x69, 0x64, 0x65, 0x6f, 0x00         // name: 'Video\0'
+                );
+
+                const mdia = this.box('mdia', ...mdhd, ...hdlr, ...minf);
+
+                const tkhd = this.fullbox('tkhd', 0, 3,  // flags: enabled, in_movie
+                    ...this.u32(0),                  // creation_time
+                    ...this.u32(0),                  // modification_time
+                    ...this.u32(1),                  // track_ID
+                    ...this.u32(0),                  // reserved
+                    ...this.u32(this.totalDuration), // duration
+                    ...Array(8).fill(0),             // reserved
+                    ...this.u16(0),                  // layer
+                    ...this.u16(0),                  // alternate_group
+                    ...this.u16(0),                  // volume
+                    ...this.u16(0),                  // reserved
+                    // matrix (identity)
+                    ...this.u32(0x00010000), ...this.u32(0), ...this.u32(0),
+                    ...this.u32(0), ...this.u32(0x00010000), ...this.u32(0),
+                    ...this.u32(0), ...this.u32(0), ...this.u32(0x40000000),
+                    ...this.u32(this.width << 16),   // width (16.16)
+                    ...this.u32(this.height << 16)   // height (16.16)
+                );
+
+                const trak = this.box('trak', ...tkhd, ...mdia);
+
+                const mvhd = this.fullbox('mvhd', 0, 0,
+                    ...this.u32(0),                  // creation_time
+                    ...this.u32(0),                  // modification_time
+                    ...this.u32(this.timescale),     // timescale
+                    ...this.u32(this.totalDuration), // duration
+                    0x00, 0x01, 0x00, 0x00,          // rate: 1.0
+                    0x01, 0x00,                      // volume: 1.0
+                    ...Array(10).fill(0),            // reserved
+                    // matrix (identity)
+                    ...this.u32(0x00010000), ...this.u32(0), ...this.u32(0),
+                    ...this.u32(0), ...this.u32(0x00010000), ...this.u32(0),
+                    ...this.u32(0), ...this.u32(0), ...this.u32(0x40000000),
+                    ...Array(24).fill(0),            // pre_defined
+                    ...this.u32(2)                   // next_track_ID
+                );
+
+                const moov = this.box('moov', ...mvhd, ...trak);
+
+                // Calculate actual mdat offset
+                const mdatOffset = ftyp.length + moov.length + 8;
+
+                // Patch stco with correct offset - find stco in moov
+                const moovArr = moov;
+                for (let i = 0; i < moovArr.length - 8; i++) {
+                    if (moovArr[i] === 0x73 && moovArr[i + 1] === 0x74 &&
+                        moovArr[i + 2] === 0x63 && moovArr[i + 3] === 0x6f) {
+                        // Found 'stco', offset value is 8 bytes after (4 size + 4 type + 4 version/flags + 4 count)
+                        const offsetPos = i + 12;
+                        const offsetBytes = this.u32(mdatOffset);
+                        moovArr[offsetPos] = offsetBytes[0];
+                        moovArr[offsetPos + 1] = offsetBytes[1];
+                        moovArr[offsetPos + 2] = offsetBytes[2];
+                        moovArr[offsetPos + 3] = offsetBytes[3];
+                        break;
+                    }
+                }
+
+                // Build mdat
+                const mdat = [
+                    ...this.u32(mdatSize),
+                    0x6d, 0x64, 0x61, 0x74  // 'mdat'
+                ];
+
+                // Combine all parts
+                const totalSize = ftyp.length + moov.length + mdatSize;
+                const result = new Uint8Array(totalSize);
+
+                let offset = 0;
+                result.set(new Uint8Array(ftyp), offset);
+                offset += ftyp.length;
+
+                result.set(new Uint8Array(moov), offset);
+                offset += moov.length;
+
+                result.set(new Uint8Array(mdat), offset);
+                offset += 8;
+
+                // Write sample data
+                for (const sample of this.samples) {
+                    result.set(sample.data, offset);
+                    offset += sample.data.length;
+                }
+
+                return new Blob([result], { type: 'video/mp4' });
+            }
+        }
+
+        // -------------------------------------------------------------
+        // EXPORT PIPELINE
+        // -------------------------------------------------------------
+
+        async function exportVideo() {
+            if (!frames || isExporting) return;
+
+            // Parse format selection (now contains JSON with codec, ext, container)
+            let formatInfo;
+            try {
+                formatInfo = JSON.parse(formatSelect.value);
+            } catch {
+                formatInfo = { codec: 'vp8', ext: 'webm', container: 'webm' };
+            }
+            const { codec, ext, container } = formatInfo;
+
+            isExporting = true;
+            exportCsvBtn.disabled = true;
+            exportVideoBtn.disabled = true;
+            formatSelect.disabled = true;
+            playBtn.disabled = true;
+            slider.disabled = true;
+            prevFileBtn.disabled = true;
+            nextFileBtn.disabled = true;
+
+            const filesToExport = fileQueue.length > 1 ? fileQueue : [{ name: currentFileName, _currentMp4: mp4, _currentFrames: frames }];
+            const totalFiles = filesToExport.length;
+
+            exportVideoBtn.textContent = `Preparing... (0/${totalFiles})`;
+
+            // We need to get config from first file for encoder setup
+            let firstConfig = null;
+            let totalFrameCount = 0;
+
+            // Pre-scan all files to get total frame count and verify dimensions match
+            const fileData = [];
+            for (let f = 0; f < filesToExport.length; f++) {
+                let fileMp4, fileFrames;
+                if (filesToExport[f]._currentMp4) {
+                    // Current file already loaded
+                    fileMp4 = filesToExport[f]._currentMp4;
+                    fileFrames = filesToExport[f]._currentFrames;
+                } else {
+                    // Load file
+                    const file = filesToExport[f];
+                    fileMp4 = new DashcamMP4(await file.arrayBuffer());
+                    fileFrames = fileMp4.parseFrames(seiType);
+                }
+
+                const config = fileMp4.getConfig();
+                if (!firstConfig) {
+                    firstConfig = config;
+                } else if (config.width !== firstConfig.width || config.height !== firstConfig.height) {
+                    alert(`File ${filesToExport[f].name} has different dimensions. All files must have the same resolution.`);
+                    isExporting = false;
+                    exportCsvBtn.disabled = false;
+                    exportVideoBtn.disabled = false;
+                    formatSelect.disabled = false;
+                    playBtn.disabled = false;
+                    slider.disabled = false;
+                    if (fileQueue.length > 1) {
+                        prevFileBtn.disabled = currentFileIndex === 0;
+                        nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
+                    }
+                    exportVideoBtn.textContent = 'Export Video';
+                    return;
+                }
+
+                const firstKf = fileFrames.findIndex(fr => fr.keyframe);
+                totalFrameCount += fileFrames.length - (firstKf >= 0 ? firstKf : 0);
+                fileData.push({ mp4: fileMp4, frames: fileFrames, config, firstKeyframe: firstKf >= 0 ? firstKf : 0 });
+            }
+
+            // Calculate actual average framerate from first file
+            const avgDurationMs = firstConfig.durations.length > 0
+                ? firstConfig.durations.reduce((a, b) => a + b, 0) / firstConfig.durations.length
+                : 33.333;
+            const actualFramerate = 1000 / avgDurationMs;
+
+            // Choose writer based on container format
+            const writer = container === 'mp4'
+                ? new MP4Writer(codec, actualFramerate)
+                : new WebMWriter(codec, actualFramerate);
+
+            let exportDecoder = null;
+            let videoEncoder = null;
+            let encodeError = null;
+            let globalFramesProcessed = 0;
+            // Track cumulative timestamp based on actual frame durations
+            let cumulativeTimestampUs = 0;
+
+            // Reset smoothed accelerometer for consistent export
+            smoothedAccelX = 0;
+            smoothedAccelY = 0;
+            smoothedTotalG = 0;
+
+            try {
+                videoEncoder = new VideoEncoder({
+                    output: (chunk, meta) => {
+                        writer.addFrame(chunk, meta, firstConfig.width, firstConfig.height);
+                    },
+                    error: (e) => {
+                        console.error("Encoder error", e);
+                        encodeError = e;
+                    }
+                });
+
+                // Configure encoder - H.264 needs avc format for proper AVCC output
+                const encoderConfig = {
+                    codec: codec,
+                    width: firstConfig.width,
+                    height: firstConfig.height,
+                    bitrate: 5_000_000,
+                    framerate: actualFramerate
+                };
+
+                // For H.264, specify annexb=false to get AVCC format (length-prefixed NALUs)
+                if (codec.startsWith('avc')) {
+                    encoderConfig.avc = { format: 'avc' };
+                } else {
+                    encoderConfig.alpha = 'discard';
+                }
+
+                videoEncoder.configure(encoderConfig);
+
+                // Process each file
+                for (let fileIdx = 0; fileIdx < fileData.length; fileIdx++) {
+                    if (!isExporting || encodeError) break;
+
+                    const { mp4: currentMp4, frames: currentFrames, config: currentConfig, firstKeyframe: currentFirstKf } = fileData[fileIdx];
+
+                    exportVideoBtn.textContent = `File ${fileIdx + 1}/${totalFiles}...`;
+
+                    // Create decoder for this file
+                    if (exportDecoder && exportDecoder.state !== 'closed') {
+                        await exportDecoder.flush();
+                        exportDecoder.close();
+                    }
+
+                    let fileFramesProcessed = 0;
+                    const fileFrameCount = currentFrames.length - currentFirstKf;
+
+                    await new Promise((resolve, reject) => {
+                        exportDecoder = new VideoDecoder({
+                            output: async (frame) => {
+                                if (encodeError || !isExporting) { frame.close(); return; }
+
+                                // 1. Draw frame to canvas
+                                ctx.drawImage(frame, 0, 0);
+
+                                // 2. Draw Overlay to canvas
+                                const actualFrameIdx = currentFirstKf + fileFramesProcessed;
+                                try {
+                                    if (currentFrames[actualFrameIdx] && currentFrames[actualFrameIdx].sei) {
+                                        drawMetadataOverlay(currentFrames[actualFrameIdx].sei, actualFrameIdx);
+                                    }
+                                    if (globalFramesProcessed % 15 === 0) {
+                                        frameNum.textContent = `Exporting ${globalFramesProcessed + 1}/${totalFrameCount}`;
+                                    }
+                                } catch (e) { }
+
+                                // 3. Create NEW frame from canvas (with overlay!)
+                                const frameDurationMs = currentConfig.durations[actualFrameIdx] || avgDurationMs;
+                                const timestamp = Math.round(cumulativeTimestampUs);
+                                const duration = Math.round(frameDurationMs * 1000);
+                                const keyFrame = (globalFramesProcessed % 60 === 0);
+
+                                if (videoEncoder.state === 'configured') {
+                                    const overlayFrame = new VideoFrame(canvas, { timestamp, duration });
+                                    videoEncoder.encode(overlayFrame, { keyFrame });
+                                    overlayFrame.close();
+                                }
+                                frame.close();
+                                cumulativeTimestampUs += frameDurationMs * 1000;
+                                fileFramesProcessed++;
+                                globalFramesProcessed++;
+                            },
+                            error: (e) => {
+                                console.error("Decoder error", e);
+                                reject(e);
+                            }
+                        });
+
+                        exportDecoder.configure({
+                            codec: currentConfig.codec,
+                            width: currentConfig.width,
+                            height: currentConfig.height
+                        });
+
+                        // Helper function to create chunks for this file
+                        const createChunkForFile = (fr) => {
+                            const sc = new Uint8Array([0, 0, 0, 1]);
+                            const data = fr.keyframe
+                                ? DashcamMP4.concat(sc, fr.sps || currentConfig.sps, sc, fr.pps || currentConfig.pps, sc, fr.data)
+                                : DashcamMP4.concat(sc, fr.data);
+
+                            let timestamp = 0;
+                            for (let i = 0; i < fr.index; i++) {
+                                timestamp += (currentConfig.durations[i] || currentConfig.durations[0] || 33.333) * 1000;
+                            }
+
+                            return new EncodedVideoChunk({
+                                type: fr.keyframe ? 'key' : 'delta',
+                                timestamp: Math.round(timestamp),
+                                data
+                            });
+                        };
+
+                        // Process all frames from this file
+                        (async () => {
+                            for (let i = currentFirstKf; i < currentFrames.length; i++) {
+                                if (!isExporting || encodeError) break;
+
+                                if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+
+                                while ((videoEncoder.encodeQueueSize > 5 || exportDecoder.decodeQueueSize > 15) && isExporting) {
+                                    await new Promise(r => setTimeout(r, 10));
+                                }
+
+                                if (exportDecoder.state === 'configured') {
+                                    exportDecoder.decode(createChunkForFile(currentFrames[i]));
+                                }
+                            }
+
+                            if (exportDecoder.state === 'configured') await exportDecoder.flush();
+                            resolve();
+                        })();
+                    });
+                }
+
+                if (videoEncoder.state === 'configured') await videoEncoder.flush();
+
+                if (isExporting && !encodeError) {
+                    writer.finalize();
+                    const blob = writer.getBlob();
+                    // Use first filename for single file, or create merged name for multiple
+                    let outputName;
+                    if (fileQueue.length > 1) {
+                        // Extract timestamp from first file for output name
+                        const firstFileName = fileQueue[0].name;
+                        const match = firstFileName.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/);
+                        outputName = match ? `dashcam_${match[1]}_merged` : 'dashcam_merged';
+                    } else {
+                        outputName = (currentFileName || 'dashcam').replace(/\.mp4$/i, '');
+                    }
+                    DashcamHelpers.downloadBlob(blob, `${outputName}_overlay.${ext}`);
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert("Export failed: " + e.message);
+            } finally {
+                try { if (exportDecoder && exportDecoder.state !== 'closed') exportDecoder.close(); } catch (e) { }
+                try { if (videoEncoder && videoEncoder.state !== 'closed') videoEncoder.close(); } catch (e) { }
+
+                isExporting = false;
+                exportCsvBtn.disabled = false;
+                exportVideoBtn.disabled = false;
+                formatSelect.disabled = false;
+                playBtn.disabled = false;
+                slider.disabled = false;
+                if (fileQueue.length > 1) {
+                    prevFileBtn.disabled = currentFileIndex === 0;
+                    nextFileBtn.disabled = currentFileIndex === fileQueue.length - 1;
+                }
+                exportVideoBtn.textContent = 'Export Video';
+            }
+        }
+
+        async function exportCsv() {
+            if (!frames || !seiFieldsCsv) return;
+            const messages = frames.map(f => f.sei).filter(Boolean);
+            if (!messages.length) { alert('No SEI metadata to export.'); return; }
+            const filename = (currentFileName || 'dashcam').replace(/\.mp4$/i, '') + '_sei.csv';
+            DashcamHelpers.downloadBlob(new Blob([DashcamHelpers.buildCsv(messages, seiFieldsCsv)], { type: 'text/csv' }), filename);
+        }
+    </script>
 </body>
+
 </html>
