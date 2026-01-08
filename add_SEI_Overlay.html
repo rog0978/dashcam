@@ -286,15 +286,7 @@
             gap: 0.5rem;
         }
 
-        .format-select {
-            height: 36px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: var(--bg);
-            color: var(--text);
-            padding: 0 0.5rem;
-            font-size: 0.8rem;
-        }
+
 
         .export-btn {
             height: 44px;
@@ -379,9 +371,7 @@
 
                 <div class="export-group">
                     <button class="export-btn" id="exportCsvBtn" disabled>Export CSV</button>
-                    <select id="formatSelect" class="format-select" disabled>
-                        <option value="" disabled selected>Loading formats...</option>
-                    </select>
+
                     <button class="export-btn" id="exportVideoBtn" disabled>Export Video</button>
                     <button class="export-btn" id="resetBtn" style="background: #ff3b30; margin-top: 12px;"
                         title="Clear all files and reset">Reset</button>
@@ -450,7 +440,6 @@
         const canvas = $('canvas'), ctx = canvas.getContext('2d');
         const slider = $('slider'), playBtn = $('playBtn');
         const exportCsvBtn = $('exportCsvBtn'), exportVideoBtn = $('exportVideoBtn');
-        const formatSelect = $('formatSelect');
         const frameNum = $('frameNum'), fileName = $('fileName'), metaList = $('metaList');
         const prevFileBtn = $('prevFileBtn'), nextFileBtn = $('nextFileBtn'), fileCounter = $('fileCounter');
         const resetBtn = $('resetBtn');
@@ -514,37 +503,7 @@
         exportCsvBtn.onclick = exportCsv;
         exportVideoBtn.onclick = exportVideo;
 
-        // --- INITIALIZATION ---
-        const supportedFormats = [
-            { mime: 'avc1.640034', label: 'MP4 (H.264)', ext: 'mp4', container: 'mp4' }
-        ];
 
-        function initFormats() {
-            formatSelect.innerHTML = '';
-            let found = false;
-            supportedFormats.forEach(fmt => {
-                if (typeof VideoEncoder !== 'undefined') {
-                    VideoEncoder.isConfigSupported({ codec: fmt.mime, width: 640, height: 480 }).then(support => {
-                        if (support.supported) {
-                            const opt = document.createElement('option');
-                            opt.value = JSON.stringify({ codec: fmt.mime, ext: fmt.ext, container: fmt.container });
-                            opt.textContent = fmt.label;
-                            formatSelect.appendChild(opt);
-                            found = true;
-                        }
-                    });
-                }
-            });
-            setTimeout(() => {
-                if (!found && formatSelect.options.length === 0) {
-                    const opt = document.createElement('option');
-                    opt.value = JSON.stringify({ codec: 'vp8', ext: 'webm', container: 'webm' });
-                    opt.textContent = "WebM (VP8) - Fallback";
-                    formatSelect.appendChild(opt);
-                }
-            }, 500);
-        }
-        initFormats();
 
         DashcamHelpers.initProtobuf().then(({ SeiMetadata, enumFields }) => {
             seiType = SeiMetadata;
@@ -628,7 +587,6 @@
 
                 exportCsvBtn.disabled = false;
                 exportVideoBtn.disabled = false;
-                formatSelect.disabled = false;
                 playBtn.disabled = false;
                 slider.disabled = false;
 
@@ -657,7 +615,7 @@
             mp4 = null; frames = null; firstKeyframe = 0; currentFileName = null;
             slider.max = 0; slider.value = 0;
             frameNum.textContent = 'Frame 0/0'; fileName.textContent = 'No file loaded';
-            exportCsvBtn.disabled = true; exportVideoBtn.disabled = true; formatSelect.disabled = true;
+            exportCsvBtn.disabled = true; exportVideoBtn.disabled = true;
             playBtn.disabled = true; slider.disabled = true;
             prevFileBtn.disabled = true; nextFileBtn.disabled = true;
             fileCounter.textContent = '';
@@ -1793,19 +1751,13 @@
         async function exportVideo() {
             if (!frames || isExporting) return;
 
-            // Parse format selection (now contains JSON with codec, ext, container)
-            let formatInfo;
-            try {
-                formatInfo = JSON.parse(formatSelect.value);
-            } catch {
-                formatInfo = { codec: 'vp8', ext: 'webm', container: 'webm' };
-            }
+            // Default to MP4 (H.264)
+            const formatInfo = { codec: 'avc1.640034', ext: 'mp4', container: 'mp4' };
             const { codec, ext, container } = formatInfo;
 
             isExporting = true;
             exportCsvBtn.disabled = true;
             exportVideoBtn.disabled = true;
-            formatSelect.disabled = true;
             playBtn.disabled = true;
             slider.disabled = true;
             prevFileBtn.disabled = true;
@@ -1843,7 +1795,6 @@
                     isExporting = false;
                     exportCsvBtn.disabled = false;
                     exportVideoBtn.disabled = false;
-                    formatSelect.disabled = false;
                     playBtn.disabled = false;
                     slider.disabled = false;
                     if (fileQueue.length > 1) {
@@ -2044,7 +1995,6 @@
                 isExporting = false;
                 exportCsvBtn.disabled = false;
                 exportVideoBtn.disabled = false;
-                formatSelect.disabled = false;
                 playBtn.disabled = false;
                 slider.disabled = false;
                 if (fileQueue.length > 1) {
