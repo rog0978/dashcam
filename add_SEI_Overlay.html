@@ -1052,8 +1052,8 @@
             const maxG = 0.75;
             const gScale = radius / (maxG * 9.81);
 
-            const dotX = centerX + (smoothedAccelY * gScale);
-            const dotY = centerY - (smoothedAccelX * gScale);
+            const dotX = centerX + (smoothedAccelX * gScale);
+            const dotY = centerY - (smoothedAccelY * gScale);
 
             // Clamp to circle
             const dx = dotX - centerX;
